@@ -6,6 +6,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Callable, Any
 from board import ConnectFourField
+import random
 
 FIELD_COLUMNS = 7
 FIELD_ROWS = 6
@@ -20,21 +21,24 @@ SEED = 42
 
 
 class Env():
-    def __init__(self, num_cols=FIELD_COLUMNS, num_rows=FIELD_ROWS, pl1=PLAYER_ONE, pl2=PLAYER_TWO, starts=STARTING_PLAYER):
+    def __init__(self, num_cols=FIELD_COLUMNS, num_rows=FIELD_ROWS, pl1=PLAYER_ONE, pl2=PLAYER_TWO, starts=STARTING_PLAYER, seed=SEED):
 
         if (pl1 == 0 or pl2 == 0):
-            raise(ValueError, "Player cannot have value 0")
+            raise ValueError("Player cannot have value 0")
         if (starts not in [pl1, pl2]):
-            raise(ValueError, "Starting Player must be a valid player")
+            raise ValueError("Starting Player must be a valid player")
         for v in [num_cols, num_rows]:
             if (4 > v or v > 10):
-                raise(ValueError, "Field dimension should be between 4 and 10")
+                raise ValueError("Field dimension should be between 4 and 10")
 
         self.field = ConnectFourField(num_cols, num_rows, pl1, pl2)
         self.starting_player = starts
         self.turn = self.starting_player
         #-1: ongoing, 0: tie, x: player x won
         self.winner = -1
+        self.seed = seed
+        #TODO: seed the random when we need reproducibility
+        #random.seed(seed)
 
     def reset(self):
         #Reset Field and Turn to starting player
@@ -50,11 +54,11 @@ class Env():
         #If game is finished (and if so, who won)
 
         if (self.turn != player):
-            raise(ValueError, f"It is not {player}'s turn")
+            raise ValueError(f"It is not {player}'s turn")
         if (self.winner != -1):
-            raise(ValueError, f"Game is already finished, Player {self.winner} won!")
+            raise ValueError(f"Game is already finished, Player {self.winner} won!")
         if (action >= self.field.num_columns or action < 0):
-            raise(ValueError, f"Action is not valid")
+            raise ValueError(f"Action is not valid")
         
         valid, finished = self.field.play(player, action)
         if (valid != 0):
@@ -71,9 +75,38 @@ class Env():
         #TODO: give negative reward when move was invalid
         return 0
 
-    def render():
-        pass
+    def render_console(self, state=None):
+        if state is None:
+            state = self.field
+        print("_"*2*self.field.num_columns+1)
+        for row in self.field:
+            rowString = "|"
+            for el in row:
+                rowString += f"{el}|"
+            print(rowString)
+        print("="*2*self.field.num_columns+1)
 
     def get_state(self):
         return self.field
+    
+    '''
+    Returns a random VALID action to perform
+    Useful for Exploration or Random Agents
+    '''
+    def random_valid_action(self):
+        if self.field.is_full():
+            raise ValueError("Board is full, no action possible")
+        
+        possible_actions = [i for i in range(0, self.field.num_columns)]
+        action = random.choice(possible_actions)
+
+        while (self.field.is_column_full(action)):
+            possible_actions.remove(action)
+            action = random.choice(possible_actions)
+
+        return action
+
+
+        
+
 
