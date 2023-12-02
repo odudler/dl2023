@@ -17,5 +17,5 @@ class RandomAgent(Agent):
     def reset(self):
         pass
 
-    def act(self, state):
+    def act(self):
         return self.env.random_valid_action()

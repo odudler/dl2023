@@ -2,15 +2,13 @@
 
 class ConnectFourField():
 
-    def __init__(self, num_columns, num_rows, player_one, player_two):
-        self.field = [[0 for _ in range(num_rows)] for _ in range(num_columns)]
+    def __init__(self, num_columns, num_rows):
+        self.field = [[0 for _ in range(num_columns)] for _ in range(num_rows)]
         self.num_columns = num_columns
         self.num_rows = num_rows
-        self.player_one_val = player_one
-        self.player_two_val = player_two
 
     def reset(self):
-        self.field = [[0 for _ in range(self.num_rows)] for _ in range(self.num_columns)]
+        self.field = [[0 for _ in range(self.num_columns)] for _ in range(self.num_rows)]
 
     def is_column_full(self, col):
         #Test if the entry in the col of the highest row is non-zero
@@ -19,7 +17,7 @@ class ConnectFourField():
     def get_col_free_entry(self, col):
         #returns the row which is the lowest non-occupied row in that column
         #returns -1 if the col is full
-        for i in range(self.num_rows, -1, -1):
+        for i in range(self.num_rows-1, -1, -1):
             if self.field[i][col] == 0:
                 return i
             
@@ -49,7 +47,12 @@ class ConnectFourField():
         # 0: no 4 connected
         # 1: Player 1 connected 4
         # 2: Player 2 connected 4
-        return self.connected_val(self.player_one_val, 4) or self.four_connected_value(self.player_two_val, 4)
+        if self.connected_val(1, 4):
+            return 1
+        elif self.connected_val(2, 4):
+            return 2
+        else:
+            return 0
 
     def connected_val(self,val, streak):
         #Check if a certain val appears streak amount of times in a row
