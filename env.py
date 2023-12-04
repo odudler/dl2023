@@ -56,16 +56,21 @@ class Env():
         if (valid != 0):
             #move was invalid (column full)
             #TODO: give negative reward for false action
-            return -1, self.compute_reward(valid, action), -1
+            return -1, self.compute_reward(valid, action, player), -1
         
         self.finished = finished
 
-        return valid, self.compute_reward(valid, action), finished
+        return valid, self.compute_reward(valid, action, player), finished
     
 
-    def compute_reward(self, valid, action):
+    def compute_reward(self, valid, action, player):
         #TODO: give negative reward when move was invalid
-        return 0
+        if valid == -1: # Invalid move receives penalty
+            return -0.1
+        elif self.finished == player: # Player who did the move won
+            return 1
+        else: # No reward
+            return 0
 
     def render_console(self, state=None):
         if state is None:
