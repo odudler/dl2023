@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import List, Tuple, Dict, Callable, Any
 from board import ConnectFourField
 import random
+import matplotlib.pyplot as plt
+import numpy as np
 
 FIELD_COLUMNS = 7
 FIELD_ROWS = 6
@@ -71,6 +73,9 @@ class Env():
             return 1
         else: # No reward
             return 0
+        
+    def get_state(self):
+        return self.field.field
 
     def render_console(self, state=None):
         if state is None:
@@ -83,8 +88,56 @@ class Env():
             print(rowString)
         print("="*(2*self.field.num_columns+1))
 
-    def get_state(self):
-        return self.field.field
+    
+
+    def render_pretty(self):
+        # Flip the board horizontally
+        field_flipped = np.flipud(self.field.field)
+
+        num_rows, num_columns = np.shape(field_flipped)
+
+        # Set up the figure and axis
+        fig, ax = plt.subplots(figsize=(num_columns, num_rows))
+        
+        # Set background color
+        ax.set_facecolor('lightblue')
+
+        # Plot gridlines
+        for i in range(num_rows + 1):
+            ax.axhline(i, color='white', linewidth=2)
+
+        for j in range(num_columns + 1):
+            ax.axvline(j, color='white', linewidth=2)
+
+        # Plot chips
+        for i in range(num_rows):
+            for j in range(num_columns):
+                if field_flipped[i, j] == 1:
+                    # Yellow chip
+                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, color='yellow', edgecolor='black', linewidth=2))
+                elif field_flipped[i, j] == 2:
+                    # Red chip
+                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, color='red', edgecolor='black', linewidth=2))
+
+        # Check if four are connected, if so, draw a line through them
+        #NOTE: need to flip the row value as the plot starts from bottom but we start from top (row 0 is highest row...)
+        streak_yellow = self.field.connected_val(1, 4)
+        streak_red = self.field.connected_val(2,4)
+
+        if (streak_yellow != []):
+            ax.plot([streak_yellow[1] + 0.5, streak_yellow[3] + 0.5], [5 - streak_yellow[0] + 0.5, 5 - streak_yellow[2] + 0.5], color='black', linewidth=7)
+        if (streak_red != []):
+            ax.plot([streak_red[1] + 0.5, streak_red[3] + 0.5], [5 - streak_red[0] + 0.5, 5 - streak_red[2] + 0.5], color='black', linewidth=7)
+
+        # Set axis limits and remove ticks
+        ax.set_xlim(0, num_columns)
+        ax.set_ylim(0, num_rows)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # Display the plot
+        plt.show()
+
     
     '''
     Returns a random VALID action to perform

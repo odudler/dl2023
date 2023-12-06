@@ -47,9 +47,9 @@ class ConnectFourField():
         # 0: no 4 connected
         # 1: Player 1 connected 4
         # 2: Player 2 connected 4
-        if self.connected_val(1, 4):
+        if self.connected_val(1, 4) != []:
             return 1
-        elif self.connected_val(2, 4):
+        elif self.connected_val(2, 4) != []:
             return 2
         else:
             return 0
@@ -57,34 +57,38 @@ class ConnectFourField():
     def connected_val(self,val, streak):
         #Check if a certain val appears streak amount of times in a row
         #column or diagonally
-        if streak > min(self.num_columns, self.num_rows):
+        #Returns: the first and last entry of the streak as array [row_1, col_1, row_2, col_2]
+        if streak > max(self.num_columns, self.num_rows):
             return False
 
         # Check horizontally
-        for row in self.field:
+        for index, row in enumerate(self.field):
             for i in range(len(row) - (streak-1)):
                 if all(row[i + j] == val for j in range(streak)):
-                    return True
+                    return [index, i, index, i+streak-1]
+                    #return True
 
         # Check vertically
         for col in range(len(self.field[0])):
             for i in range(len(self.field) - (streak-1)):
                 if all(self.field[i + j][col] == val for j in range(streak)):
-                    return True
+                    return [i, col, i+streak-1, col]
 
         # Check diagonally (from top-left to bottom-right)
         for i in range(len(self.field) - (streak-1)):
             for j in range(len(self.field[0]) - (streak-1)):
                 if all(self.field[i + k][j + k] == val for k in range(streak)):
-                    return True
+                    return [i, j, i+streak-1, j+streak-1]
+                    #return True
 
         # Check diagonally (from top-right to bottom-left)
         for i in range(len(self.field) - (streak-1)):
             for j in range((streak-1), len(self.field[0])):
                 if all(self.field[i + k][j - k] == val for k in range(streak)):
-                    return True
+                    return [i, j, i+streak-1, j-streak+1]
+                    #return True
 
-        return False
+        return []
     
     def play(self, player, action):
         #returns tuple (successful, finished)
