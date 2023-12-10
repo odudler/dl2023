@@ -78,6 +78,8 @@ class Env():
     def get_state(self):
         return self.field.field
     
+    # NOTE: we had to invert the state here such that the agent that is copied over works
+    # because the agent is trained to set '1's and not '2's
     def get_state_inverted(self):
         field = copy.deepcopy(self.field.field)
         num_rows, num_columns = np.shape(field)
