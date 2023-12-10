@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 # Local imports
-from agent_interface import Agent
+from agents.agent_interface import Agent
 from env import Env
 
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'mask'))
@@ -24,8 +24,25 @@ class Memory(object):
     def push(self, *args):
         self.memory.append(Transition(*args))
 
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
+    def sample(self, batch_size: int, split_transitions: bool = False):
+        minibatch = random.sample(self.memory, batch_size)
+
+        if split_transitions:
+            states, actions, rewards, next_states, dones = [], [], [], [], []
+        
+            for state, action, reward, next_state, done in minibatch:
+                states.append(state)
+                actions.append(action)
+                rewards.append(reward)
+                next_states.append(next_state)
+                dones.append(done)
+            
+            minibatch = [states, actions, rewards, next_states, dones]
+
+            for i in range(len(minibatch)):
+                minibatch[i] = torch.tensor(minibatch[i], dtype=torch.float32)
+        
+        return minibatch
     
     def __len__(self):
         return len(self.memory)
@@ -44,3 +61,7 @@ def weights_init_(m):
     if isinstance(m, nn.Linear):
         torch.nn.init.xavier_uniform_(m.weight, gain=1)
         torch.nn.init.constant_(m.bias, 0)
+    
+def soft_update(local_model, target_model, tau):
+    for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
+        target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)

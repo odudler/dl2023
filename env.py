@@ -9,6 +9,7 @@ from board import ConnectFourField
 import random
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 FIELD_COLUMNS = 7
 FIELD_ROWS = 6
@@ -76,6 +77,17 @@ class Env():
         
     def get_state(self):
         return self.field.field
+    
+    def get_state_inverted(self):
+        field = copy.deepcopy(self.field.field)
+        num_rows, num_columns = np.shape(field)
+        for i in range(num_rows):
+            for j in range(num_columns):
+                if field[i][j] == 1:
+                    field[i][j] = 2
+                elif field[i][j] == 2:
+                    field[i][j] = 1
+        return field
 
     def render_console(self, state=None):
         if state is None:

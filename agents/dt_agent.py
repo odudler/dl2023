@@ -1,5 +1,5 @@
 "Implementation of the Decision Transformer Agent"
-from agent_interface import Agent
+from .agent_interface import Agent
 
 import torch
 import torch.nn as nn

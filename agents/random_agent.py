@@ -1,5 +1,5 @@
 "Implementation of Agent following Random Policy, not learning at all"
-from agent_interface import Agent
+from .agent_interface import Agent
 
 class RandomAgent(Agent):
     def __init__(self, env):
@@ -17,5 +17,5 @@ class RandomAgent(Agent):
     def reset(self):
         pass
 
-    def act(self):
+    def act(self, state):
         return self.env.random_valid_action()

@@ -5,12 +5,16 @@ import torch.optim as optim
 import numpy as np
 import random
 
-from agent_interface import Agent
+from .agent_interface import Agent
+from networks import DDQN
 from utils import Memory, weights_init_
 
 class DeepQAgent(Agent):
-    def __init__(self, env, state_size: int = 42, action_size: int = 7, batch_size: int = 4):
+    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, batch_size: int = 4, device: str = "cpu"):
+        super(DeepQAgent, self).__init__()
+        
         self.env = env
+        self.device = device
 
         self.state_size = state_size
         self.action_size = action_size
@@ -19,23 +23,10 @@ class DeepQAgent(Agent):
         self.epsilon = 1.0 # Exploration rate (espilon-greedy)
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.99
-        self.model = self._build_model()
+        self.model = DDQN(state_size, action_size, hidden_size).apply(weights_init_).to(self.device)
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.batch_size = batch_size
-
-    def _build_model(self):
-        model = nn.Sequential(
-            nn.Linear(self.state_size, 24),
-            nn.ReLU(),
-            nn.Linear(24, 24),
-            nn.ReLU(),
-            nn.Linear(24, self.action_size)
-        )
-
-        model.apply(weights_init_)
-
-        return model
     
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
