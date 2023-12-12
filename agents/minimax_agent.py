@@ -7,20 +7,14 @@ import random
 import copy
 from env import Env
 
-# NOTE: minimax is assumed to always be the opponent!
-# NOTE: This Agent currently only works for the fixed board size of 7x6!!!!!!
+# NOTE: This Agent only works for the fixed board size of 7x6!!!!!!
+# NOTE: This Agent-Implementation was taken from: https://github.com/bryanjsanchez/ConnectFour/blob/master/connectfour.py
 
-#NOTE: This Agent-Implementation was taken from: https://github.com/bryanjsanchez/ConnectFour/blob/master/connectfour.py
-#NOTE: It had/has to be alteted to be able to play against eachother (i.e. to be player 1 and player 2 (unclear if this is possible currently @albin @nino))
-
-AGENT = 1
-OPPONENT = 2 #Whoever is number 2 wins way more often, implying the policy isn't proberly applied in case of the agent being the "PLAYER"
 EMPTY = 0
-
 MAX_SPACE_TO_WIN = 3
 
 class MinimaxAgent(Agent):
-    def __init__(self, env, epsilon=0.3, whoami=AGENT):
+    def __init__(self, env, epsilon=0.3, whoami=1): #Default "whoami" is being the AGENT
         self.env = env
         self.epsilon = epsilon
         #This variable is necessary as the minimax algo needs to know if its the "1" (AGENT) or the "2" (OPPONENT)
@@ -91,9 +85,6 @@ def _score(board: ConnectFourField, player):
 
 # Evaluate scores for considering the adjacent pieces
 def _evaluate_adjacents(adjacent_pieces, player):
-    # opponent = OPPONENT
-    # if player == OPPONENT:
-    #     opponent = AGENT
     opponent = 3-player
     score = 0
     player_pieces = 0
@@ -120,9 +111,9 @@ def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player, whoami):
     finished = board.is_finished()
     if ply == 0 or finished != -1:
         if finished != -1:
-            if finished == 3-whoami: #TODO: ENEMY
+            if finished == 3-whoami:
                 return (None,-1000000000)
-            elif finished == whoami: #TODO: ACTOR
+            elif finished == whoami:
                 return (None,1000000000)
             else: # There is no winner
                 return (None,0)
@@ -135,7 +126,7 @@ def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player, whoami):
         col = random.choice(valid_cols)
         # Expand current node/board
         for c in valid_cols:
-            next_board = _clone_and_place_piece(board, 3-whoami, c) #TODO: whoever is currently making a move!
+            next_board = _clone_and_place_piece(board, 3-whoami, c)
             new_score = _minimax(next_board, ply - 1, alpha, beta, False, whoami)[1]
             if new_score > value:
                 value = new_score
@@ -153,7 +144,7 @@ def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player, whoami):
         value = math.inf
         col = random.choice(valid_cols)
         for c in valid_cols:
-            next_board = _clone_and_place_piece(board, whoami, c) # WHOEVER IS currently making a move!
+            next_board = _clone_and_place_piece(board, whoami, c)
             new_score = _minimax(next_board, ply - 1, alpha, beta, True, whoami)[1]
             if new_score < value:
                 value = new_score

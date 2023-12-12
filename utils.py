@@ -65,3 +65,13 @@ def weights_init_(m):
 def soft_update(local_model, target_model, tau):
     for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
         target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
+
+#given an array of rewards, calculate the corresponding "Return-to-go" array!
+#Example: if rewards are [1,2,3,4] then the result should be [10,9,7,4]
+#Becaues initially the reward we totally get is 10 in this case etc.
+def calculate_RTG(rewards):
+    RTGs = []
+    for i in range(0,len(rewards)):
+        #Sum up all the rewards occuring in the current timestep until the end!
+        RTGs.append(sum(rewards[i:]))
+    return RTGs
