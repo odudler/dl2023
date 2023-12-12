@@ -128,10 +128,10 @@ class Env():
             for j in range(num_columns):
                 if field_flipped[i, j] == 1:
                     # Yellow chip
-                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, color='yellow', edgecolor='black', linewidth=2))
+                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, facecolor='yellow', edgecolor='black', linewidth=2))
                 elif field_flipped[i, j] == 2:
                     # Red chip
-                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, color='red', edgecolor='black', linewidth=2))
+                    ax.add_patch(plt.Circle((j + 0.5, i + 0.5), 0.4, facecolor='red', edgecolor='black', linewidth=2))
 
         # Check if four are connected, if so, draw a line through them
         #NOTE: need to flip the row value as the plot starts from bottom but we start from top (row 0 is highest row...)
@@ -157,18 +157,26 @@ class Env():
     Returns a random VALID action to perform
     Useful for Exploration or Random Agents
     '''
-    def random_valid_action(self):
-        if self.field.is_full():
-            raise ValueError("Board is full, no action possible")
+    # def random_valid_action_old(self):
+    #     if self.field.is_full():
+    #         raise ValueError("Board is full, no action possible")
         
-        possible_actions = [i for i in range(0, self.field.num_columns)]
-        action = random.choice(possible_actions)
+    #     possible_actions = [i for i in range(0, self.field.num_columns)]
+    #     action = random.choice(possible_actions)
 
-        while (self.field.is_column_full(action)):
-            possible_actions.remove(action)
-            action = random.choice(possible_actions)
+    #     while (self.field.is_column_full(action)):
+    #         print(f"Action is full: {action}")
+    #         # TODO: This isnt properly working i think, the removing is maybe not working properly? it sometimes tries the same faulty action twice..
+    #         possible_actions.remove(action)
+    #         action = random.choice(possible_actions)
 
-        return action
+    #     return action
+    
+    def random_valid_action(self):
+        possible_actions = self.field.get_valid_cols()
+        if possible_actions == []:
+            raise ValueError("Board is full, but still attempting to play, this shouldn't happen!")
+        return random.choice(possible_actions)
 
 
         

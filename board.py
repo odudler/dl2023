@@ -32,6 +32,13 @@ class ConnectFourField():
             return 0
         else:
             return -1
+        
+    def get_valid_cols(self):
+        valid_locations = []
+        for i in range(0,self.num_columns):
+            if not self.is_column_full(i):
+                valid_locations.append(i)
+        return valid_locations
 
     def is_full(self):
         #Return if all entries in the field are filled out (non-zero)
