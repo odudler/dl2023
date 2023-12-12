@@ -72,8 +72,10 @@ class Env():
             return -0.1
         elif self.finished == player: # Player who did the move won
             return 1
-        else: # No reward
-            return 0
+        elif self.finished == 3-player: # Corresponds to Opponent
+            return -1
+        else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
+            return 0.01 #
         
     def get_state(self):
         return self.field.field

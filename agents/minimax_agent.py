@@ -14,15 +14,17 @@ from env import Env
 #NOTE: It had/has to be alteted to be able to play against eachother (i.e. to be player 1 and player 2 (unclear if this is possible currently @albin @nino))
 
 AGENT = 1
-OPPONENT = 2
+OPPONENT = 2 #Whoever is number 2 wins way more often, implying the policy isn't proberly applied in case of the agent being the "PLAYER"
 EMPTY = 0
 
 MAX_SPACE_TO_WIN = 3
 
 class MinimaxAgent(Agent):
-    def __init__(self, env, epsilon=0.3):
+    def __init__(self, env, epsilon=0.3, whoami=AGENT):
         self.env = env
         self.epsilon = epsilon
+        #This variable is necessary as the minimax algo needs to know if its the "1" (AGENT) or the "2" (OPPONENT)
+        self.whoami = whoami
 
     def load_model(self, loadpath):
         pass
@@ -39,13 +41,13 @@ class MinimaxAgent(Agent):
     def act(self, state):
         if random.random() > self.epsilon:
             board = copy.deepcopy(state)
-            action, _ = _minimax(board, 4, -math.inf, math.inf, True)
+            action, _ = _minimax(board, 4, -math.inf, math.inf, True, self.whoami)
             return action
         else:
             return self.env.random_valid_action()
 
 # Need to clone the board in order to "preplay" the game without altering the actual game
-def _clone_and_place_piece(board : ConnectFourField, player, column):
+def _clone_and_place_piece(board : ConnectFourField, player, column): #TODO: Player should be whoever is currently making a move!
     new_board = copy.deepcopy(board)
     new_board.play(player, column)
     return new_board
@@ -89,9 +91,10 @@ def _score(board: ConnectFourField, player):
 
 # Evaluate scores for considering the adjacent pieces
 def _evaluate_adjacents(adjacent_pieces, player):
-    opponent = OPPONENT
-    if player == OPPONENT:
-        opponent = AGENT
+    # opponent = OPPONENT
+    # if player == OPPONENT:
+    #     opponent = AGENT
+    opponent = 3-player
     score = 0
     player_pieces = 0
     empty_spaces = 0
@@ -112,19 +115,19 @@ def _evaluate_adjacents(adjacent_pieces, player):
     return score
 
 # board: copy of the current playing field, ply: depth of the tree, alpha/beta: limits of the score, for better performance, maxi_player: not sure what this is yet
-def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player):
+def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player, whoami):
     valid_cols = board.get_valid_cols()
     finished = board.is_finished()
     if ply == 0 or finished != -1:
         if finished != -1:
-            if finished == AGENT:
+            if finished == 3-whoami: #TODO: ENEMY
                 return (None,-1000000000)
-            elif finished == OPPONENT:
+            elif finished == whoami: #TODO: ACTOR
                 return (None,1000000000)
             else: # There is no winner
                 return (None,0)
         else: # Ply == 0
-            return (None,_score(board, OPPONENT))
+            return (None,_score(board, whoami)) # TODO: 
     # If max player
     if maxi_player:
         value = -math.inf
@@ -132,8 +135,8 @@ def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player):
         col = random.choice(valid_cols)
         # Expand current node/board
         for c in valid_cols:
-            next_board = _clone_and_place_piece(board, OPPONENT, c)
-            new_score = _minimax(next_board, ply - 1, alpha, beta, False)[1]
+            next_board = _clone_and_place_piece(board, 3-whoami, c) #TODO: whoever is currently making a move!
+            new_score = _minimax(next_board, ply - 1, alpha, beta, False, whoami)[1]
             if new_score > value:
                 value = new_score
                 col = c
@@ -150,8 +153,8 @@ def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player):
         value = math.inf
         col = random.choice(valid_cols)
         for c in valid_cols:
-            next_board = _clone_and_place_piece(board, AGENT, c)
-            new_score = _minimax(next_board, ply - 1, alpha, beta, True)[1]
+            next_board = _clone_and_place_piece(board, whoami, c) # WHOEVER IS currently making a move!
+            new_score = _minimax(next_board, ply - 1, alpha, beta, True, whoami)[1]
             if new_score < value:
                 value = new_score
                 col = c
