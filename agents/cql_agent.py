@@ -4,6 +4,8 @@ For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN."""
 # Base libraries
 import numpy as np
 import random
+from typing import Union
+import copy
 
 # ML libraries
 import torch
@@ -18,7 +20,9 @@ from networks import DDQN
 from utils import Memory, weights_init_, soft_update
 
 class CQLAgent(Agent):
-    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, batch_size: int = 4, device="cpu"):
+    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
+                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.99,
+                 device: str = "cpu", options: Union[None, dict] = None):
         super(CQLAgent, self).__init__()
         
         self.env = env
@@ -26,18 +30,27 @@ class CQLAgent(Agent):
 
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = Memory(max_capacity=1000) # Replay memory
+        self.memory = Memory(max_capacity=1000, device=self.device) # Replay memory
         self.batch_size = batch_size
 
-        self.epsilon = 1.0 # Exploration rate (espilon-greedy)
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.99
+        self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
+        self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
 
         self.gamma = 0.99 # Discount rate
-        self.tau = 1e-3 # Soft update param
+        self.tau = 1e-2 # Soft update param
 
-        self.network = DDQN(state_size, action_size, hidden_size).apply(weights_init_).to(self.device)
-        self.target_net = DDQN(state_size, action_size, hidden_size).apply(weights_init_).to(self.device)
+        if type(options) == dict:
+            self.options = options
+
+            if type(self.options['weights_init']) == CQLAgent: # Initialize with weights from passed model
+                self.network = copy.deepcopy(self.options['weights_init'].network).eval().to(self.device)
+                self.target_net = copy.deepcopy(self.options['weights_init'].target_net).eval().to(self.device)
+            else:
+                raise ValueError(f'Cannot copy weigths to new model, invalid model type {type(self.options["weights_init"])}.')
+        else: # No additional options passed, initialize new model
+            self.network = DDQN(state_size, action_size, hidden_size, hidden_layers).apply(weights_init_).to(self.device)
+            self.target_net = DDQN(state_size, action_size, hidden_size, hidden_layers).apply(weights_init_).to(self.device)
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
 
@@ -67,7 +80,7 @@ class CQLAgent(Agent):
 
         Q_a_s = self.network(states.reshape(self.batch_size, -1))
 
-        actions = actions.type(torch.int64).unsqueeze(-1)
+        actions = actions.unsqueeze(-1)
         Q_expected = Q_a_s.gather(1, actions)
 
         cql1_loss = self.cql_loss(Q_a_s, actions)
@@ -85,7 +98,7 @@ class CQLAgent(Agent):
         # Update target network
         soft_update(self.network, self.target_net, self.tau)
 
-        # Update epsilon
+        # # Update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 

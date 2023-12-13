@@ -4,13 +4,16 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
+import copy
+from typing import Union
 
 from .agent_interface import Agent
 from networks import DDQN
 from utils import Memory, weights_init_
 
 class DeepQAgent(Agent):
-    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, batch_size: int = 4, device: str = "cpu"):
+    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 1, batch_size: int = 4, epsilon_max: float = 1.0, epsilon_min: float = 0.01,
+                epsilon_decay: float = 0.99, device: str = "cpu", options: Union[None, dict] = None):
         super(DeepQAgent, self).__init__()
         
         self.env = env
@@ -20,10 +23,20 @@ class DeepQAgent(Agent):
         self.action_size = action_size
         self.memory = Memory(max_capacity=1000) # Replay memory
         self.gamma = 0.99 # Discount rate
-        self.epsilon = 1.0 # Exploration rate (espilon-greedy)
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.99
-        self.model = DDQN(state_size, action_size, hidden_size).apply(weights_init_).to(self.device)
+        self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
+        self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
+        
+        if type(options) == dict:
+            self.options = options
+
+            if type(self.options['weights_init']) == DeepQAgent: # Initialize with weights from passed model
+                self.model = copy.deepcopy(self.options['weights_init'].model).to(self.device)
+            else:
+                raise ValueError(f'Cannot copy weigths to new model, invalid model type {type(self.options["weights_init"])}.')
+        else: # No additional options passed, initialize new model
+            self.model = DDQN(state_size, action_size, hidden_size, hidden_layers).apply(weights_init_).to(self.device)
+        
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.batch_size = batch_size
@@ -46,10 +59,10 @@ class DeepQAgent(Agent):
             # Predict next state
             target = reward
             if not done:
-                next_state_tensor = torch.tensor(next_state, dtype=torch.float32)
+                next_state_tensor = torch.tensor(next_state, dtype=torch.float32, device=self.device)
                 with torch.no_grad():
                     target = reward + self.gamma * torch.max(self.model(next_state_tensor.flatten())).item()
-            state_tensor = torch.tensor(state, dtype=torch.float32)
+            state_tensor = torch.tensor(state, dtype=torch.float32, device=self.device)
             target_f = self.model(state_tensor.flatten())
             target_f[action] = target
             # Backpropagation
@@ -69,5 +82,5 @@ class DeepQAgent(Agent):
         if np.random.rand() <= self.epsilon:
             return self.env.random_valid_action()
         with torch.no_grad():
-            q_values = self.model(torch.tensor(state, dtype=torch.float32).flatten())
-            return np.argmax(q_values.numpy())
+            q_values = self.model(torch.tensor(state, dtype=torch.float32, device=self.device).flatten())
+            return torch.argmax(q_values).cpu().numpy()
