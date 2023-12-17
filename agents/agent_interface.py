@@ -7,6 +7,9 @@ Normally, it takes at least: env, mem (buffer), policy/target network, potential
 '''
 
 class Agent(ABC):
+    def __init__(self, learning: bool = False):
+        self.learning = learning
+
     @abstractmethod
     def load_model(self, loadpath):
         pass

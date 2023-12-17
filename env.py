@@ -4,7 +4,7 @@ from gym.spaces import Space
 import torch
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Callable, Any
+from typing import List, Tuple, Dict, Callable, Any, Union
 from board import ConnectFourField
 import random
 import matplotlib.pyplot as plt
@@ -67,31 +67,42 @@ class Env():
     
 
     def compute_reward(self, valid, action, player):
+        if valid == -1:
+            return -1000
+        else:
         #TODO: give negative reward when move was invalid
-        if valid == -1: # Invalid move receives penalty
-            return -0.1
-        elif self.finished == player: # Player who did the move won
-            return 1
-        elif self.finished == 3-player: # Corresponds to Opponent
-            return -1
-        else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
-            return 0.01 #
+        # if valid == -1: # Invalid move receives penalty
+        #     return -0.1
+        # elif self.finished == player: # Player who did the move won
+        #     return 1
+        # elif self.finished == 3-player: # Corresponds to Opponent
+        #     return -1
+        # else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
+            return self.field.utilityValue(player) / 10
         
-    def get_state(self):
-        return self.field.field
+    def get_state(self, return_type: str = 'list'):
+        if return_type == 'list':
+            return self.field.field
+        else:
+            return self.field
     
     # NOTE: we had to invert the state here such that the agent that is copied over works
     # because the agent is trained to set '1's and not '2's
-    def get_state_inverted(self):
-        field = copy.deepcopy(self.field.field)
-        num_rows, num_columns = np.shape(field)
+    def get_state_inverted(self, return_type: str = 'list'):
+        assert(return_type in ['list', 'class'])
+        connect_four_field = copy.deepcopy(self.field)
+        num_rows, num_columns = np.shape(connect_four_field.field)
         for i in range(num_rows):
             for j in range(num_columns):
-                if field[i][j] == 1:
-                    field[i][j] = 2
-                elif field[i][j] == 2:
-                    field[i][j] = 1
-        return field
+                if connect_four_field.field[i][j] == 1:
+                    connect_four_field.field[i][j] = 2
+                elif connect_four_field.field[i][j] == 2:
+                    connect_four_field.field[i][j] = 1
+        if return_type == 'list':
+            return connect_four_field.field 
+        else:
+            return connect_four_field
+
 
     def render_console(self, state=None):
         if state is None:

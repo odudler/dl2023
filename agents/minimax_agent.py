@@ -1,25 +1,20 @@
-"Implementation of Agent using minimax to play"
-from .agent_interface import Agent
+from random import shuffle
 from board import ConnectFourField
-import typing
-import math
+from copy import deepcopy
+from .agent_interface import Agent
 import random
-import copy
 from env import Env
 
-# NOTE: This Agent only works for the fixed board size of 7x6!!!!!!
-# NOTE: This Agent-Implementation was taken from: https://github.com/bryanjsanchez/ConnectFour/blob/master/connectfour.py
-
-EMPTY = 0
-MAX_SPACE_TO_WIN = 3
-
+# Adapted from https://github.com/AbdallahReda/Connect4/blob/master/minimaxAlphaBeta.py
 class MinimaxAgent(Agent):
-    def __init__(self, env, epsilon=0.3, whoami=1): #Default "whoami" is being the AGENT
-        self.env = env
-        self.epsilon = epsilon
-        #This variable is necessary as the minimax algo needs to know if its the "1" (AGENT) or the "2" (OPPONENT)
-        self.whoami = whoami
+    def __init__(self, depth: int = 4, epsilon: float = 0.3, player: int = 1):
+        super(MinimaxAgent, self).__init__(learning=False)
+        self.max_depth = depth
+        self.player = player
 
+        # Measure of randomness
+        self.epsilon = epsilon
+    
     def load_model(self, loadpath):
         pass
 
@@ -29,128 +24,113 @@ class MinimaxAgent(Agent):
     def optimize_model(self):
         pass
 
-    def reset(self):
-        pass
+    def reset(self, env: Env):
+        env.reset()
 
-    def act(self, state):
+    def act(self, env: Env):
+        # Choose best predicted action
         if random.random() > self.epsilon:
-            board = copy.deepcopy(state)
-            action, _ = _minimax(board, 4, -math.inf, math.inf, True, self.whoami)
-            return action
+            return self.best_predicted_action(env.field, self.max_depth, self.player)
         else:
-            return self.env.random_valid_action()
+            return env.random_valid_action()
+        
+    def decay_epsilon(self, rate: float = 0.9, min: float = 0.1):
+        self.epsilon = max(min, self.epsilon * rate)
+    
+    def set_epsilon(self, value: float = 0.4):
+        assert value >= 0.0 and value <= 1.0
+        self.epsilon = value
 
-# Need to clone the board in order to "preplay" the game without altering the actual game
-def _clone_and_place_piece(board : ConnectFourField, player, column): #TODO: Player should be whoever is currently making a move!
-    new_board = copy.deepcopy(board)
-    new_board.play(player, column)
-    return new_board
+    # Starting from the middle row and going outwards from there can decrease search times by a factor of over 10 
+    # as the middle is in general the better column to play
+    def reorder_array(self, arr):
+        n = len(arr)
+        middle = n // 2  # Get the index of the middle element
+        reordered = [arr[middle]]  # Start with the middle element
 
-# Calculate the scores for possible moves to find the best one
-def _score(board: ConnectFourField, player):
-    score = 0
-    # Give more weight to center columns
-    for col in range(2, 5):
-        for row in range(board.num_rows):
-            if board.field[row][col] == player:
-                if col == 3:
-                    score += 3
-                else:
-                    score+= 2
-    # Horizontal pieces
-    for col in range(board.num_columns - MAX_SPACE_TO_WIN):
-        for row in range(board.num_rows):
-            adjacent_pieces = [board.field[row][col], board.field[row][col+1], 
-                                board.field[row][col+2], board.field[row][col+3]] 
-            score += _evaluate_adjacents(adjacent_pieces, player)
-    # Vertical pieces
-    for col in range(board.num_columns):
-        for row in range(board.num_rows - MAX_SPACE_TO_WIN):
-            adjacent_pieces = [board.field[row][col], board.field[row+1][col], 
-                                board.field[row+2][col], board.field[row+3][col]] 
-            score += _evaluate_adjacents(adjacent_pieces, player)
-    # Diagonal upwards pieces
-    for col in range(board.num_columns - MAX_SPACE_TO_WIN):
-        for row in range(board.num_rows - MAX_SPACE_TO_WIN):
-            adjacent_pieces = [board.field[row][col], board.field[row+1][col+1], 
-                                board.field[row+2][col+2], board.field[row+3][col+3]] 
-            score += _evaluate_adjacents(adjacent_pieces, player)
-    # Diagonal downwards pieces
-    for col in range(board.num_columns - MAX_SPACE_TO_WIN):
-        for row in range(MAX_SPACE_TO_WIN, board.num_rows):
-            adjacent_pieces = [board.field[row][col], board.field[row-1][col+1], 
-                    board.field[row-2][col+2], board.field[row-3][col+3]]
-            score += _evaluate_adjacents(adjacent_pieces, player)
-    return score
+        for i in range(1, middle+1):
+            # Add the element to the right and then to the left of the middle, if they exist
+            if middle + i < n:
+                reordered.append(arr[middle + i])
+            if middle - i >= 0:
+                reordered.append(arr[middle - i])
 
-# Evaluate scores for considering the adjacent pieces
-def _evaluate_adjacents(adjacent_pieces, player):
-    opponent = 3-player
-    score = 0
-    player_pieces = 0
-    empty_spaces = 0
-    opponent_pieces = 0
-    for p in adjacent_pieces:
-        if p == player:
-            player_pieces += 1
-        elif p == EMPTY:
-            empty_spaces += 1
-        elif p == opponent:
-            opponent_pieces += 1
-    if player_pieces == 4:
-        score += 99999
-    elif player_pieces == 3 and empty_spaces == 1:
-        score += 100
-    elif player_pieces == 2 and empty_spaces == 2:
-        score += 10
-    return score
+        return reordered
 
-# board: copy of the current playing field, ply: depth of the tree, alpha/beta: limits of the score, for better performance, maxi_player: not sure what this is yet
-def _minimax(board : ConnectFourField, ply, alpha, beta, maxi_player, whoami):
-    valid_cols = board.get_valid_cols()
-    finished = board.is_finished()
-    if ply == 0 or finished != -1:
-        if finished != -1:
-            if finished == 3-whoami:
-                return (None,-1000000000)
-            elif finished == whoami:
-                return (None,1000000000)
-            else: # There is no winner
-                return (None,0)
-        else: # Ply == 0
-            return (None,_score(board, whoami)) # TODO: 
-    # If max player
-    if maxi_player:
-        value = -math.inf
-        # If every choice has an equal score, choose randomly
-        col = random.choice(valid_cols)
-        # Expand current node/board
-        for c in valid_cols:
-            next_board = _clone_and_place_piece(board, 3-whoami, c)
-            new_score = _minimax(next_board, ply - 1, alpha, beta, False, whoami)[1]
-            if new_score > value:
-                value = new_score
-                col = c
-            # Alpha pruning
-            if value > alpha:
-                alpha = new_score
-            # If beta is less than or equal to alpha, there will be no need to
-            # check other branches because there will not be a better move
-            if beta <= alpha:
-                break
-        return col, value
-    #if min player
-    else:
-        value = math.inf
-        col = random.choice(valid_cols)
-        for c in valid_cols:
-            next_board = _clone_and_place_piece(board, whoami, c)
-            new_score = _minimax(next_board, ply - 1, alpha, beta, True, whoami)[1]
-            if new_score < value:
-                value = new_score
-                col = c
-            if value < beta:
-                beta  = value
-            if beta <= alpha:
-                break
-        return col, value
+    def best_predicted_action(self, board: ConnectFourField, depth: int = 4, player: int = 1):
+        # Get array of possible moves
+        validMoves = board.get_valid_cols()
+        # Choose random starting move
+        # shuffle(validMoves)
+        validMoves = self.reorder_array(validMoves)
+
+        bestMove  = validMoves[0]
+        bestScore = float("-inf")
+
+        # Initial alpha & beta values for alpha-beta pruning
+        alpha = float("-inf")
+        beta = float("inf")
+
+        if player == 2: opponent = 1
+        else: opponent = 2
+    
+        # Go through all of those moves
+        for move in validMoves:
+            # Create copy so as not to change the original board
+            tempBoard = deepcopy(board)
+            tempBoard.play(player, move)
+
+            # Call min on that new board
+            boardScore = self.minimizeBeta(tempBoard, depth - 1, alpha, beta, player, opponent)
+            if boardScore > bestScore:
+                bestScore = boardScore
+                bestMove = move
+        
+        return bestMove
+
+    def minimizeBeta(self, board: ConnectFourField, depth: int, a, b, player: int, opponent: int):
+        # Get all valid moves
+        validMoves = board.get_valid_cols()
+        
+        # RETURN CONDITION
+        # Check to see if game over
+        if depth == 0 or len(validMoves) == 0 or board.is_finished() != -1:
+            return board.utilityValue(player)
+        
+        # CONTINUE TREE SEARCH
+        beta = b
+        # If end of tree evaluate scores
+        for move in validMoves:
+            boardScore = float("inf")
+            # Else continue down tree as long as ab conditions met
+            if a < beta:
+                tempBoard = deepcopy(board)
+                tempBoard.play(opponent, move)
+                boardScore = self.maximizeAlpha(tempBoard, depth - 1, a, beta, player, opponent)
+            if boardScore < beta:
+                beta = boardScore
+        return beta
+
+    def maximizeAlpha(self, board: ConnectFourField, depth: int, a, b, player: int, opponent: int):
+        # Get all valid moves
+        validMoves = board.get_valid_cols()
+
+        # RETURN CONDITION
+        # Check to see if game over
+        if depth == 0 or len(validMoves) == 0 or board.is_finished() != -1:
+            return board.utilityValue(player)
+
+        # CONTINUE TREE SEARCH
+        alpha = a        
+        # If end of tree, evaluate scores
+        for move in validMoves:
+            boardScore = float("-inf")
+            # Else continue down tree as long as ab conditions met
+            if alpha < b:
+                tempBoard = deepcopy(board)
+                tempBoard.play(player, move)
+                boardScore = self.minimizeBeta(tempBoard, depth - 1, alpha, b, player, opponent)
+            if boardScore > alpha:
+                alpha = boardScore
+        return alpha
+

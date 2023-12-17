@@ -18,14 +18,14 @@ from torch.nn.utils import clip_grad_norm_
 from .agent_interface import Agent
 from networks import DDQN
 from utils import Memory, weights_init_, soft_update
+from env import Env
 
 class CQLAgent(Agent):
-    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
+    def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
                  epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.99,
                  device: str = "cpu", options: Union[None, dict] = None):
-        super(CQLAgent, self).__init__()
+        super(CQLAgent, self).__init__(learning=True)
         
-        self.env = env
         self.device = device
 
         self.state_size = state_size
@@ -105,7 +105,9 @@ class CQLAgent(Agent):
     def reset(self):
         self.memory.reset()
 
-    def act(self, state):
+    def act(self, env: Env):
+        state = env.get_state()
+
         # Epsilon-greedy policy
         if random.random() > self.epsilon:
             state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(-1).unsqueeze(0)
@@ -116,7 +118,7 @@ class CQLAgent(Agent):
             action = np.argmax(action_values.cpu().data.numpy(), axis=1)
             action = int(action.squeeze())
         else:
-            action = self.env.random_valid_action()
+            action = env.random_valid_action()
         return action
 
     def cql_loss(self, q_values, current_action):

@@ -10,18 +10,18 @@ from typing import Union
 from .agent_interface import Agent
 from networks import DDQN
 from utils import Memory, weights_init_
+from env import Env
 
 class DeepQAgent(Agent):
-    def __init__(self, env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 1, batch_size: int = 4, epsilon_max: float = 1.0, epsilon_min: float = 0.01,
-                epsilon_decay: float = 0.99, device: str = "cpu", options: Union[None, dict] = None):
-        super(DeepQAgent, self).__init__()
-        
-        self.env = env
+    def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 128, hidden_layers: int = 4, batch_size: int = 10, epsilon_max: float = 1.0, epsilon_min: float = 0.1,
+                epsilon_decay: float = 0.999, device: str = "cpu", options: Union[None, dict] = None):
+        super(DeepQAgent, self).__init__(learning=True)
+
         self.device = device
 
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = Memory(max_capacity=1000) # Replay memory
+        self.memory = Memory(max_capacity=10000) # Replay memory
         self.gamma = 0.99 # Discount rate
         self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
         self.epsilon_min = epsilon_min
@@ -73,14 +73,16 @@ class DeepQAgent(Agent):
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+            # print('Epsilon decayed to', self.epsilon)
 
     def reset(self):
         self.memory.reset()
 
-    def act(self, state):
+    def act(self, env: Env):
         # Epsilon-greedy policy
-        if np.random.rand() <= self.epsilon:
-            return self.env.random_valid_action()
-        with torch.no_grad():
-            q_values = self.model(torch.tensor(state, dtype=torch.float32, device=self.device).flatten())
-            return torch.argmax(q_values).cpu().numpy()
+        if random.random() > self.epsilon:
+            state = env.get_state()
+            with torch.no_grad():
+                q_values = self.model(torch.tensor(state, dtype=torch.float32, device=self.device).flatten())
+                return torch.argmax(q_values).cpu().numpy()
+        return env.random_valid_action()

@@ -61,7 +61,7 @@ class ConnectFourField():
         else:
             return 0
 
-    def connected_val(self,val, streak):
+    def connected_val(self, val, streak):
         #Check if a certain val appears streak amount of times in a row
         #column or diagonally
         #Returns: the first and last entry of the streak as array [row_1, col_1, row_2, col_2]
@@ -98,9 +98,12 @@ class ConnectFourField():
         return []
     
     def play(self, player, action):
-        #returns tuple (successful, finished)
-        #successful: 0 if move was successful, -1 if the given action is illegal (column full)
-        #finished: -1: not finished, 0: tie, x: player x won
+        """
+        returns tuple (successful, finished)
+        successful: 0 if move was successful, -1 if the given action is illegal (column full)
+        finished: -1: not finished, 0: tie, x: player x won
+        """
+        
         row = self.get_col_free_entry(action)
         if row == -1:
             return -1, 0
@@ -109,4 +112,115 @@ class ConnectFourField():
 
         return 0, self.is_finished()
 
-            
+    # Adapted from https://github.com/AbdallahReda/Connect4/blob/master/utility.py#L6
+    def countSequence(self, player: int, length: int):
+        """ Given the board state , the current player and the length of Sequence you want to count
+            Return the count of Sequences that have the give length
+        """
+        def verticalSeq(row, col):
+            """Return 1 if it found a vertical sequence with the required length 
+            """
+            count = 0
+            for rowIndex in range(row, self.num_rows):
+                if self.field[rowIndex][col] == self.field[row][col]:
+                    count += 1
+                else:
+                    break
+            if count >= length:
+                return 1
+            else:
+                return 0
+
+        def horizontalSeq(row, col):
+            """Return 1 if it found a horizontal sequence with the required length 
+            """
+            count = 0
+            for colIndex in range(col, self.num_columns):
+                if self.field[row][colIndex] == self.field[row][col]:
+                    count += 1
+                else:
+                    break
+            if count >= length:
+                return 1
+            else:
+                return 0
+
+        def negDiagonalSeq(row, col):
+            """Return 1 if it found a negative diagonal sequence with the required length 
+            """
+            count = 0
+            colIndex = col
+            for rowIndex in range(row, -1, -1):
+                if colIndex > self.num_rows:
+                    break
+                elif self.field[rowIndex][colIndex] == self.field[row][col]:
+                    count += 1
+                else:
+                    break
+                colIndex += 1 # increment column when row is incremented
+            if count >= length:
+                return 1
+            else:
+                return 0
+
+        def posDiagonalSeq(row, col):
+            """Return 1 if it found a positive diagonal sequence with the required length 
+            """
+            count = 0
+            colIndex = col
+            for rowIndex in range(row, self.num_rows):
+                if colIndex > self.num_rows:
+                    break
+                elif self.field[rowIndex][colIndex] == self.field[row][col]:
+                    count += 1
+                else:
+                    break
+                colIndex += 1 # increment column when row incremented
+            if count >= length:
+                return 1
+            else:
+                return 0
+
+        totalCount = 0
+        # for each piece in the board...
+        for row in range(self.num_rows):
+            for col in range(self.num_columns):
+                # ...that is of the player we're looking for...
+                if self.field[row][col] == player:
+                    # check if a vertical streak starts at (row, col)
+                    totalCount += verticalSeq(row, col)
+                    # check if a horizontal four-in-a-row starts at (row, col)
+                    totalCount += horizontalSeq(row, col)
+                    # check if a diagonal (both +ve and -ve slopes) four-in-a-row starts at (row, col)
+                    totalCount += (posDiagonalSeq(row, col) + negDiagonalSeq(row, col))
+        # return the sum of sequences of length 'length'
+        return totalCount
+
+    def utilityValue(self, player: int):
+        """ A utility fucntion to evaluate the state of the board and report it to the calling function,
+            utility value is defined as the score of the player who calles the function - score of opponent player,
+            The score of any player is the sum of each sequence found for this player scaled by a large factor for
+            sequences with higher lengths.
+        """
+
+        if player == 1: opponent = 2
+        else: opponent = 1
+
+        p4s    = self.countSequence(player, 4)
+        p3s   = self.countSequence(player, 3)
+        p2s     = self.countSequence(player, 2)
+        playerScore    = p4s * 99999 + p3s * 999 + p2s * 99
+
+        o4s  = self.countSequence(opponent, 4)
+        o3s = self.countSequence(opponent, 3)
+        o2s   = self.countSequence(opponent, 2)
+        opponentScore  = o4s * 99999 + o3s * 999 + o2s * 99
+
+        if o4s > 0:
+            # Current player lost the game
+            # Return biggest negative value
+            return float('-inf')
+        else:
+            # Return difference in scores
+            return playerScore - opponentScore
+

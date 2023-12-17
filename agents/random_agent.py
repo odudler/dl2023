@@ -1,9 +1,10 @@
 "Implementation of Agent following Random Policy, not learning at all"
 from .agent_interface import Agent
+from env import Env
 
 class RandomAgent(Agent):
-    def __init__(self, env):
-        self.env = env
+    def __init__(self):
+        super(RandomAgent, self).__init__(learning=False)
 
     def load_model(self, loadpath):
         pass
@@ -17,5 +18,5 @@ class RandomAgent(Agent):
     def reset(self):
         pass
 
-    def act(self, state):
-        return self.env.random_valid_action()
+    def act(self, env: Env):
+        return env.random_valid_action()
