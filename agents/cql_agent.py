@@ -33,7 +33,7 @@ class CQLAgent(Agent):
         self.action_size = action_size
         self.hidden_size = hidden_size
         self.hidden_layers = hidden_layers
-        self.memory = Memory(max_capacity=10000, device=self.device) # Replay memory
+        self.memory = Memory(max_capacity=100000, device=self.device, min_capacity=10000) # Replay memory
         self.batch_size = batch_size
 
         self.epsilon_max = epsilon_max
@@ -78,7 +78,7 @@ class CQLAgent(Agent):
         torch.save(self.target_net.state_dict(), directory + name + '.pt')
 
     def optimize_model(self):
-        if len(self.memory) < self.batch_size:
+        if not self.memory.start_optimizing():
             return
         
         states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)

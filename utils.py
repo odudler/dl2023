@@ -18,9 +18,10 @@ Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'
 
 """Implement memory class"""
 class Memory(object):
-    def __init__(self, max_capacity, device: str = 'cpu'):
+    def __init__(self, max_capacity: int, device: torch.device = torch.device("cpu"), min_capacity: int = 10000):
         self.memory = deque([], maxlen=max_capacity)
         self.device = device
+        self.min_capacity = min_capacity
 
     def push(self, *args):
         self.memory.append(Transition(*args))
@@ -50,6 +51,10 @@ class Memory(object):
     
     def reset(self):
         self.memory.clear()
+        
+    def start_optimizing(self):
+        # Training starts when memory collected enough data.
+        return self.__len__() >= self.min_capacity
     
 def seed_everything(seed: int = 42, deterministic: bool = True):
     random.seed(seed)
