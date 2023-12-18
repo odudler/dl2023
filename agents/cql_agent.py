@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 
 # Local imports
-from .agent_interface import Agent
+from agents.agent_interface import Agent
 from networks import DDQN
 from utils import Memory, weights_init_, soft_update
 from env import Env
@@ -24,7 +24,7 @@ from env import Env
 class CQLAgent(Agent):
     def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
                  epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
-                 device: str = "cpu", options: Union[None, dict] = None):
+                 device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
         super(CQLAgent, self).__init__(learning=True)
         
         self.device = device
@@ -37,7 +37,7 @@ class CQLAgent(Agent):
         self.batch_size = batch_size
 
         self.epsilon_max = epsilon_max
-        self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
+        self.epsilon = epsilon_max # Exploration rate (epsilon-greedy)
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
@@ -61,10 +61,10 @@ class CQLAgent(Agent):
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
 
     def load_model(self, loadpath):
-        self.network.load_state_dict(torch.load(loadpath))
+        self.network.load_state_dict(torch.load(loadpath, map_location=torch.device(self.device)))
         self.network.eval()
 
-        self.target_net.load_state_dict(torch.load(loadpath))
+        self.target_net.load_state_dict(torch.load(loadpath, map_location=torch.device(self.device)))
         self.target_net.eval()
     
     def remember(self, state, action, reward, next_state, done):
@@ -75,7 +75,7 @@ class CQLAgent(Agent):
             os.mkdir(directory)
         if name == '': # If no name was given
             name = f'CQLAgent_{self.num_optimizations}'
-        torch.save(self.target_net.state_dict(), directory + name)
+        torch.save(self.target_net.state_dict(), directory + name + '.pt')
 
     def optimize_model(self):
         if len(self.memory) < self.batch_size:

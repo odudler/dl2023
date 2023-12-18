@@ -14,7 +14,7 @@ import torch.nn as nn
 from agents.agent_interface import Agent
 from env import Env
 
-Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'mask'))
+Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'mask'])
 
 """Implement memory class"""
 class Memory(object):

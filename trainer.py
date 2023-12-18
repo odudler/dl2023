@@ -33,7 +33,7 @@ class Trainer():
                  opponent_id: int = 2,
                  modes: list = ['TRAIN', 'EVAL'],
                  num_episodes: Union[int, dict] = {'TRAIN': 1000, 'EVAL': 100},
-                 device: str = 'cpu',
+                 device: torch.device = torch.device("cpu"),
                  verbose: bool = False,
                  ):
         # Environment
@@ -43,17 +43,17 @@ class Trainer():
         # Opponent
         self.opponent = opponent
         # Hyperparameters
-        assert(all([id in [1, 2] for id in [agent_id, opponent_id]]))
+        assert all([id in [1, 2] for id in [agent_id, opponent_id]]), "Agent and Opponent IDs should be 1 or 2"
         self.AGENT = agent_id
         self.OPPONENT = opponent_id
-        assert(all(mode in ['TRAIN', 'EVAL', 'TEST'] for mode in modes))
+        assert all(mode in ['TRAIN', 'EVAL', 'TEST'] for mode in modes), "Mode not accepted. Accepted modes: 'TRAIN', 'EVAL' and 'TEST'"
         self.MODES = modes
         if isinstance(num_episodes, int):
             assert(num_episodes > 0)
         else:
             assert(value > 0 for value in num_episodes.values())
         self.NUM_EPISODES = num_episodes
-        assert(device in ['cpu', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'])
+        assert(type(device) == torch.device), "'device' should be of type 'torch.device'"
         self.DEVICE = device
         self.VERBOSE = verbose
         # Parse options
