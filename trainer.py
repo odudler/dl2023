@@ -58,6 +58,8 @@ class Trainer():
         self.VERBOSE = verbose
         # Parse options
         if options: self.parse_options(options)
+        # Helper variables
+        self.num_optimizations = 0
 
     def parse_options(self, options: dict):
         """
@@ -94,6 +96,22 @@ class Trainer():
                 self.REPLACE_FOR_EVALUATION_BY = options['REPLACE_FOR_EVALUATION_BY']
             else:
                 self.REPLACE_FOR_EVALUATION_BY = RandomAgent() # Default value
+        if 'AUTOSAVE' in keys:
+            assert(type(options['AUTOSAVE']) == bool)
+            self.AUTOSAVE = options['AUTOSAVE']
+            if self.AUTOSAVE:
+                self.times_saved = 0 # Running variable
+                if 'AUTOSAVE_TYPE' in keys:
+                    assert(isinstance(options['AUTOSAVE_TYPE'], str) and options['AUTOSAVE_TYPE'] in ['NUM_OPTIMIZATIONS', 'NUM_EPISODES'])
+                    self.AUTOSAVE_TYPE = options['AUTOSAVE_TYPE']
+                else:
+                    self.AUTOSAVE_TYPE = 'NUM_OPTIMIZATIONS' # Default value
+                if 'AUTOSAVE_PERIOD' in keys:
+                    assert(isinstance(options['AUTOSAVE_PERIOD'], int) and options['AUTOSAVE_PERIOD'] > 0)
+                    self.AUTOSAVE_PERIOD = options['AUTOSAVE_PERIOD']
+                else:
+                    self.AUTOSAVE_PERIOD = 100000 if self.AUTOSAVE_TYPE == 'NUM_OPTIMIZATIONS' else 1000 # Default value
+
         # Define additional options here
         # TODO: Option for printing the last n games or for periodically printing a game
 
@@ -114,7 +132,7 @@ class Trainer():
                 invalid = None
 
             # Play all episodes
-            for i in range(1, self.NUM_EPISODES[mode]):
+            for i in range(1, self.NUM_EPISODES[mode] + 1):
                 # Clean up terminal line 
                 if i % 100 == 0: print('\r                                                                                                                       ', end='')
                 # Print current episode
@@ -122,7 +140,7 @@ class Trainer():
                 # Make it random who starts
                 agent_start = random.choice([True, False])
                 # Run one episode of the game and update running variables
-                finished, turns, invalid = self.play_episode(mode, agent_start, turns, invalid)
+                finished, turns, invalid = self.play_episode(mode=mode, agent_start=agent_start, turns=turns, invalid=invalid)
                 # Update scores with winner
                 if finished == 1:
                     p1_score += 1
@@ -132,15 +150,24 @@ class Trainer():
                 self.perform_periodic_updates(mode=mode, episode=i)
                 # Reset board to empty
                 self.env.reset()
-            # Current MODE done, print on new line
+            # Current MODE Drint on new line
             print(f'\n{mode}: Average turns per episode', turns / self.NUM_EPISODES[mode])
             print(f'{mode}: Average invalid moves per episode', invalid / self.NUM_EPISODES[mode])
             print('\n')
+        
+            # Save final model
+            if mode == 'TRAIN': self.agent.save_model()
             
-    def play_episode(self, mode: str = 'TRAIN', agent_start: bool = True, turns: Union[int, None] = None, invalid: Union[int, None] = None):
+    def play_episode(self, mode: str = 'TRAIN', agent: Union[None, Agent] = None, opponent: Union[None, Agent] = None, 
+                     agent_start: bool = True, turns: Union[int, None] = None, invalid: Union[int, None] = None,
+                     print_game: bool = False):
         """
         Let agent and opponent play one episode
         """
+
+        # Check wether agent and opponent are given
+        agent = agent if agent != None else self.agent
+        opponent = opponent if opponent != None else self.opponent
 
         # Initialize episodic variables
         finished = -1
@@ -152,21 +179,28 @@ class Trainer():
             ######################
             if agent_start: # Agent starts the game
                 # Get current state of the game
-                state = self.env.get_state() if not type(self.agent) in [MinimaxAgent, DeepQAgent] else None
+                state = self.env.get_state() if not type(agent) in [RandomAgent, MinimaxAgent, DeepQAgent, CQLAgent] else None
                 state_var = self.env.get_state()
                 # Predict best next action based on this state
-                action = self.agent.act(state if state else self.env)
+                deterministic = mode in ['EVAL', 'TEST'] # Don't want randomness during evaluation
+                action = agent.act(state if state else self.env, deterministic)
                 # Execute action
                 valid, reward, finished = self.env.step(action, self.AGENT)
+                # Print board
+                if print_game:
+                    print('\n')
+                    self.env.render_console(self.env.get_state())
+                    print('AGENT action was', action if valid != -1 else 'invalid') 
                 # Print and track stuff for debugging
                 if self.VERBOSE:
                     if turns != None: turns += 1
                     if invalid != None and valid == -1: invalid += 1
                 # Perform learning step for a learning opponent
-                if self.agent.learning:
+                if self.agent.learning and mode == 'TRAIN':
                     next_state = self.env.get_state()
                     self.agent.remember(state_var, action, reward, next_state, finished)
                     self.agent.optimize_model()
+                    self.num_optimizations += 1
                 # End episode if somebody won or it is a tie
                 if finished != -1: break
             else: # Agent doesn't start the game
@@ -175,11 +209,16 @@ class Trainer():
             # Opponent makes a turn #
             #########################
             # Get current state of the game
-            state = self.env.get_state() if not type(self.agent) in [MinimaxAgent, DeepQAgent] else None
+            state = self.env.get_state() if not type(opponent) in [RandomAgent, MinimaxAgent, DeepQAgent, CQLAgent] else None
             # Predict best next action based on this state
-            action = self.opponent.act(state if state else self.env)
+            action = opponent.act(state if state else self.env)
             # Execute action
             valid, _, finished = self.env.step(action, self.OPPONENT)
+            # Print board
+            if print_game:
+                print('\n')
+                self.env.render_console(self.env.get_state())
+                print('OPPONENT action was', action if valid != -1 else 'invalid') 
             # Print and track stuff for debugging
             if self.VERBOSE:
                 if turns != None: turns += 1
@@ -208,10 +247,75 @@ class Trainer():
         # Decay randomness of opponent
         if getattr(self, 'DECAY_RANDOMNESS_OPPONENT', None):
             if episode % self.DECAY_RANDOMNESS_FREQUENCY == 0:
-                assert(type(self.opponent) is MinimaxAgent)
-                self.opponent.decay_epsilon() # TODO: Make decay rate and min randomness hyperparameters as well
+                if getattr(self, 'UPDATE_OPPONENT', None):
+                    BOOTSTRAP_EPISODES = getattr(self, 'BOOTSTRAP_EPISODES', None)
+                    if episode < BOOTSTRAP_EPISODES:
+                        assert(type(self.opponent) is MinimaxAgent)
+                        self.opponent.decay_epsilon()
+                else:
+                    assert(type(self.opponent) is MinimaxAgent)
+                    self.opponent.decay_epsilon() # TODO: Make decay rate and min randomness hyperparameters as well
         
         # Replace opponent for evaluation
         if mode in ['EVAL', 'TEST']:
             if getattr(self, 'REPLACE_FOR_EVALUATION', None):
                 self.opponent = self.REPLACE_FOR_EVALUATION_BY
+        
+        # Save model periodically
+        if getattr(self, 'AUTOSAVE', None):
+            if self.AUTOSAVE_TYPE == 'NUM_OPTIMIZATIONS': # Periodic in number of optimizations
+                if self.num_optimizations > self.AUTOSAVE_PERIOD * (self.times_saved + 1):
+                    self.agent.save_model()
+                    self.times_saved += 1
+            else: # Episodic periodicity
+                if episode > self.AUTOSAVE_PERIOD * (self.times_saved + 1):
+                    self.agent.save_model()
+                    self.times_saved += 1
+    
+    def eval(self, agent: Agent, opponent: Union[Agent, None, str] = None, episodes: int = 100, agent_start: Union[bool, None] = None, print_last_n_games: Union[int, None] = None):
+        """
+        Quickly evaluate the relative performance of one agent vs another with no training.
+
+        agent_start: Union[bool, None]. If True, AGENT always starts, if False, OPPONENT always starts, if None/not specified, the starting player is chosen randomly. 
+        """
+
+        # Parse input
+        if not opponent:
+            opponent = RandomAgent()
+        else:
+            if isinstance(opponent, str):
+                if opponent == 'MINIMAX':
+                    opponent = MinimaxAgent(depth=3, epsilon=0.5, player=self.OPPONENT)
+        if not print_last_n_games:
+            print_last_n_games = 0
+        else:
+            assert(print_last_n_games >= 0)
+
+        # Score counter
+        p1_score = 0
+        p2_score = 0
+        # Keep track of total number of turns and invalid turns
+        turns = 0
+        invalid = 0
+        
+        # Play all episodes
+        for i in range(1, episodes + 1):
+            # Clean up terminal line 
+            if i % 100 == 0: print('\r                                                                                                                       ', end='')
+            # Print current episode
+            print(f'\rEVAL: Running episode {i} of {episodes}. Ratios are [WINS: {p1_score / i:.2%} | LOSSES: {p2_score / i:.2%} | TIES: {(i - p1_score - p2_score) / i:.2%}]', end='')
+            # Make it random who starts
+            start = agent_start if agent_start != None else random.choice([True, False])
+            # Run one episode of the game and update running variables
+            finished, turns, invalid = self.play_episode('EVAL', agent=agent, opponent=opponent, agent_start=start, turns=turns, invalid=invalid, print_game=i>(episodes-print_last_n_games))
+            # Update scores with winner
+            if finished == 1:
+                p1_score += 1
+            elif finished == 2:
+                p2_score += 1
+            # Reset board to empty
+            self.env.reset()
+        # Done, print on new line
+        print(f'\nEVAL: Average turns per episode', turns / episodes)
+        print(f'EVAL: Average invalid moves per episode', invalid / episodes)
+        print('\n')

@@ -46,10 +46,10 @@ class Env():
         self.finished = -1
 
     def step(self, action, player):
-        #Returns:
-        #If move was successful
-        #Reward for this turn
-        #If game is finished (and if so, who won)
+        # Returns:
+        # If move was successful
+        # Reward for this turn
+        # If game is finished (and if so, who won)
         if (self.finished != -1):
             raise ValueError(f"Game is already finished, Player {self.finished} won!")
         if (action >= self.field.num_columns or action < 0):
@@ -67,18 +67,17 @@ class Env():
     
 
     def compute_reward(self, valid, action, player):
-        if valid == -1:
-            return -1000
-        else:
-        #TODO: give negative reward when move was invalid
-        # if valid == -1: # Invalid move receives penalty
-        #     return -0.1
-        # elif self.finished == player: # Player who did the move won
-        #     return 1
-        # elif self.finished == 3-player: # Corresponds to Opponent
-        #     return -1
-        # else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
-            return self.field.utilityValue(player) / 10
+        # if valid == -1: # Invalid 
+        #     return -1000
+        # else:
+        if valid == -1: # Invalid move receives penalty
+            return -0.1
+        elif self.finished == player: # Player who did the move won
+            return 1
+        elif self.finished == 3-player: # Corresponds to Opponent
+            return -1
+        else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
+            return 0 #self.field.utilityValue(player) / 10
         
     def get_state(self, return_type: str = 'list'):
         if return_type == 'list':

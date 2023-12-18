@@ -15,7 +15,7 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def save_model(self, savepath):
+    def save_model(self, name: str = '', directory: str = './saved_models/'):
         pass
 
     @abstractmethod

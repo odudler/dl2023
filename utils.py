@@ -18,8 +18,9 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 
 """Implement memory class"""
 class Memory(object):
-    def __init__(self, max_capacity):
+    def __init__(self, max_capacity, device: str = 'cpu'):
         self.memory = deque([], maxlen=max_capacity)
+        self.device = device
 
     def push(self, *args):
         self.memory.append(Transition(*args))
@@ -40,7 +41,7 @@ class Memory(object):
             minibatch = [states, actions, rewards, next_states, dones]
 
             for i in range(len(minibatch)):
-                minibatch[i] = torch.tensor(minibatch[i], dtype=torch.float32)
+                minibatch[i] = torch.tensor(minibatch[i], dtype=torch.float32, device=self.device)
         
         return minibatch
     

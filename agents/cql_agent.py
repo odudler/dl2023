@@ -6,6 +6,7 @@ import numpy as np
 import random
 from typing import Union
 import copy
+import os
 
 # ML libraries
 import torch
@@ -22,7 +23,7 @@ from env import Env
 
 class CQLAgent(Agent):
     def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
-                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.99,
+                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
                  device: str = "cpu", options: Union[None, dict] = None):
         super(CQLAgent, self).__init__(learning=True)
         
@@ -30,15 +31,20 @@ class CQLAgent(Agent):
 
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = Memory(max_capacity=1000, device=self.device) # Replay memory
+        self.hidden_size = hidden_size
+        self.hidden_layers = hidden_layers
+        self.memory = Memory(max_capacity=10000, device=self.device) # Replay memory
         self.batch_size = batch_size
 
+        self.epsilon_max = epsilon_max
         self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
-        self.gamma = 0.99 # Discount rate
-        self.tau = 1e-2 # Soft update param
+        self.gamma = 1 # Discount rate
+        self.tau = 1e-3 # Soft update param
+
+        self.num_optimizations = 0
 
         if type(options) == dict:
             self.options = options
@@ -64,8 +70,12 @@ class CQLAgent(Agent):
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
 
-    def save_model(self, savepath):
-        torch.save(self.target_net.state_dict(), savepath)
+    def save_model(self, name: str = '', directory: str = './saved_models/'):
+        if not os.path.isdir(directory):
+            os.mkdir(directory)
+        if name == '': # If no name was given
+            name = f'CQLAgent_{self.num_optimizations}'
+        torch.save(self.target_net.state_dict(), directory + name)
 
     def optimize_model(self):
         if len(self.memory) < self.batch_size:
@@ -80,7 +90,7 @@ class CQLAgent(Agent):
 
         Q_a_s = self.network(states.reshape(self.batch_size, -1))
 
-        actions = actions.unsqueeze(-1)
+        actions = actions.unsqueeze(-1).type(dtype=torch.int64)
         Q_expected = Q_a_s.gather(1, actions)
 
         cql1_loss = self.cql_loss(Q_a_s, actions)
@@ -102,14 +112,19 @@ class CQLAgent(Agent):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
+        self.num_optimizations += 1
+
     def reset(self):
         self.memory.reset()
+        self.num_optimizations = 0
+        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).apply(weights_init_).to(self.device)
+        self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).apply(weights_init_).to(self.device)
 
-    def act(self, env: Env):
+    def act(self, env: Env, deterministic: bool = False):
         state = env.get_state()
 
         # Epsilon-greedy policy
-        if random.random() > self.epsilon:
+        if deterministic or random.random() > self.epsilon:
             state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(-1).unsqueeze(0)
             self.network.eval()
             with torch.no_grad():
@@ -128,3 +143,17 @@ class CQLAgent(Agent):
         q_a = q_values.gather(1, current_action)
 
         return (logsumexp - q_a).mean()
+    
+    def train_mode(self):
+        if getattr(self, 'original_epsilon', None) == None:
+            return
+        # Restore original epsilon
+        self.epsilon = self.original_epsilon
+        # Delete temporary attribute
+        delattr(self, 'original_epsilon')
+    
+    def eval_mode(self):
+        # Save original epsilon in temporary attribute
+        self.original_epsilon = self.epsilon
+        # Set randomness to zero for evaluation
+        self.epsilon = 0

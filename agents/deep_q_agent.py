@@ -6,6 +6,7 @@ import numpy as np
 import random
 import copy
 from typing import Union
+import os
 
 from .agent_interface import Agent
 from networks import DDQN
@@ -22,7 +23,7 @@ class DeepQAgent(Agent):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = Memory(max_capacity=10000) # Replay memory
-        self.gamma = 0.99 # Discount rate
+        self.gamma = 1 # Discount rate, can be set to 1 for finite-horizon games
         self.epsilon = epsilon_max # Exploration rate (espilon-greedy)
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
@@ -40,6 +41,8 @@ class DeepQAgent(Agent):
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.batch_size = batch_size
+
+        self.num_optimizations = 0
     
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
@@ -47,9 +50,13 @@ class DeepQAgent(Agent):
     def load_model(self, loadpath):
         self.model.load_state_dict(torch.load(loadpath))
         self.model.eval()
-
-    def save_model(self, savepath):
-        torch.save(self.model.state_dict(), savepath)
+    
+    def save_model(self, name: str = '', directory: str = './saved_models/'):
+        if not os.path.isdir(directory):
+            os.mkdir(directory)
+        if name == '': # If no name was given
+            name = f'DQAgent_{self.num_optimizations}'
+        torch.save(self.model.state_dict(), directory + name)
 
     def optimize_model(self):
         if len(self.memory) < self.batch_size:
@@ -73,7 +80,8 @@ class DeepQAgent(Agent):
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            # print('Epsilon decayed to', self.epsilon)
+        
+        self.num_optimizations += 1
 
     def reset(self):
         self.memory.reset()
