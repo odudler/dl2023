@@ -41,7 +41,7 @@ class OldMinimaxAgent(Agent):
             return self.env.random_valid_action()
 
 # Need to clone the board in order to "preplay" the game without altering the actual game
-def _clone_and_place_piece(board : ConnectFourField, player, column): #TODO: Player should be whoever is currently making a move!
+def _clone_and_place_piece(board: ConnectFourField, player, column): #TODO: Player should be whoever is currently making a move!
     new_board = copy.deepcopy(board)
     new_board.play(player, column)
     return new_board

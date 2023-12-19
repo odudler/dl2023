@@ -11,7 +11,6 @@ from typing import Union
 import torch
 
 # Local imports
-from board import ConnectFourField
 from env import Env
 from agents.agent_interface import Agent
 from agents.random_agent import RandomAgent

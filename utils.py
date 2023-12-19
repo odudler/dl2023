@@ -63,11 +63,6 @@ def seed_everything(seed: int = 42, deterministic: bool = True):
     torch.use_deterministic_algorithms(deterministic)
     os.environ['PYTHONHASHSEED'] = str(seed)
     
-def weights_init_(m):
-    if isinstance(m, nn.Linear):
-        torch.nn.init.xavier_uniform_(m.weight, gain=1)
-        torch.nn.init.constant_(m.bias, 0)
-    
 def soft_update(local_model, target_model, tau):
     for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
         target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
