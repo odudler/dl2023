@@ -1,6 +1,3 @@
-"""Implementation of CQL DQN agent. 
-For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN."""
-
 # Base libraries
 import numpy as np
 import random
@@ -22,6 +19,10 @@ from utils import Memory, soft_update
 from env import Env
 
 class CQLAgent(Agent):
+    """
+    Implementation of CQL DQN agent.
+    For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN. 
+    """
     def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
                  epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
                  device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
@@ -42,7 +43,7 @@ class CQLAgent(Agent):
         self.device = device
         
         # Replay memory
-        self.memory = Memory(max_capacity=100000, device=self.device, min_capacity=100)
+        self.memory = Memory(max_capacity=100000, device=self.device, min_capacity=1000)
         
         # Parameters
         self.gamma = 1 # Discount rate
@@ -85,10 +86,12 @@ class CQLAgent(Agent):
             return
         
         states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)
-
+        move_validity = next_states[:, 0, :] == 0
         # Predict next state
         with torch.no_grad():
-            Q_targets_next = self.target_net(next_states.reshape(self.batch_size, -1)).detach().max(1)[0].unsqueeze(0)
+            Q_targets_next = self.target_net(next_states.reshape(self.batch_size, -1))
+            Q_targets_next = torch.where(move_validity, Q_targets_next, -1e7)
+            Q_targets_next = Q_targets_next.detach().max(1)[0].unsqueeze(0)
             Q_targets = (rewards + (self.gamma * Q_targets_next * (1 - dones))).T
 
         Q_a_s = self.network(states.reshape(self.batch_size, -1))
@@ -131,9 +134,9 @@ class CQLAgent(Agent):
             state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
             self.network.eval()
             with torch.no_grad():
-                action_values = self.network(state)
+                q_values = self.network(state)
             self.network.train()
-            action = torch.argmax(action_values, dim=1)
+            action = torch.argmax(q_values, dim=1)
             action = int(action)
         else:
             action = env.random_valid_action()

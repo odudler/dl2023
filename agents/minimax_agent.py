@@ -5,8 +5,11 @@ from .agent_interface import Agent
 import random
 from env import Env
 
-# Adapted from https://github.com/AbdallahReda/Connect4/blob/master/minimaxAlphaBeta.py
 class MinimaxAgent(Agent):
+    """
+    Implementation of the minimax agent.
+    Adapted from https://github.com/AbdallahReda/Connect4/blob/master/minimaxAlphaBeta.py 
+    """
     def __init__(self, depth: int = 4, epsilon: float = 0.3, player: int = 1):
         super(MinimaxAgent, self).__init__(learning=False)
         self.max_depth = depth

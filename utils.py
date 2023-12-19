@@ -1,4 +1,4 @@
-"""Implements some utility functions."""
+""" Implements some utility functions. """
 
 # Base libraries
 import os
@@ -16,8 +16,10 @@ from env import Env
 
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'mask'])
 
-"""Implement memory class"""
 class Memory(object):
+    """
+    Implementation of the memory class.
+    """
     def __init__(self, max_capacity: int, device: torch.device = torch.device("cpu"), min_capacity: int = 10000):
         self.memory = deque([], maxlen=max_capacity)
         self.device = device

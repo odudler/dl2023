@@ -1,8 +1,10 @@
-"Implementation of Agent following Random Policy, not learning at all"
 from .agent_interface import Agent
 from env import Env
 
 class RandomAgent(Agent):
+    """
+    Implementation of the agent following random policy, not learning at all. 
+    """
     def __init__(self):
         super(RandomAgent, self).__init__(learning=False)
 

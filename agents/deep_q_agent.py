@@ -1,5 +1,3 @@
-"Implementation of deep Q Agent, performing Q learning with neural networks"
-
 # Base libraries
 import numpy as np
 import random
@@ -19,6 +17,9 @@ from utils import Memory
 from env import Env
 
 class DeepQAgent(Agent):
+    """
+    Implementation of the deep Q Agent, performing Q learning with neural networks.
+    """
     def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 128, hidden_layers: int = 4, batch_size: int = 10,
                  epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
                  device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
@@ -110,9 +111,9 @@ class DeepQAgent(Agent):
             state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
             self.network.eval()
             with torch.no_grad():
-                action_values = self.network(state)
+                q_values = self.network(state)
             self.network.train()
-            action = torch.argmax(action_values, dim=1)
+            action = torch.argmax(q_values, dim=1)
             action = int(action)
         else:
             action = env.random_valid_action()
