@@ -53,10 +53,13 @@ class DeepQAgent(Agent):
             self.options = options
             if type(self.options['weights_init']) == DeepQAgent: # Initialize with weights from passed model
                 self.network = copy.deepcopy(self.options['weights_init'].network).eval().to(self.device)
+                self.target_net = copy.deepcopy(self.options['weights_init'].target_net).eval().to(self.device)
             else:
                 raise ValueError(f'Cannot copy weigths to new model, invalid model type {type(self.options["weights_init"])}.')
         else: # No additional options passed, initialize new model
             self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+            self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+            self.target_net.load_state_dict(self.network.state_dict())
         
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.network.parameters(), lr=0.001)
@@ -64,6 +67,8 @@ class DeepQAgent(Agent):
     def load_model(self, loadpath: str):
         self.network.load_state_dict(torch.load(loadpath, map_location=self.device))
         self.network.eval()
+        self.target_net.load_state_dict(torch.load(loadpath, map_location=self.device))
+        self.target_net.eval()
     
     def save_model(self, name: str = '', directory: str = './saved_models/'):
         if not os.path.isdir(directory):
@@ -80,20 +85,8 @@ class DeepQAgent(Agent):
             return
         minibatch = self.memory.sample(self.batch_size)
         for state, action, reward, next_state, done in minibatch:
-            # Predict next state
-            target = reward
-            if not done:
-                next_state_tensor = torch.tensor(next_state, dtype=torch.float32, device=self.device)
-                with torch.no_grad():
-                    target = reward + self.gamma * torch.max(self.network(next_state_tensor.flatten())).item()
-            state_tensor = torch.tensor(state, dtype=torch.float32, device=self.device)
-            target_f = self.network(state_tensor.flatten())
-            target_f[action] = target
+            pass
             # Backpropagation
-            self.optimizer.zero_grad()
-            loss = self.criterion(target_f, self.network(state_tensor.flatten()))
-            loss.backward()
-            self.optimizer.step()
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -103,7 +96,9 @@ class DeepQAgent(Agent):
     def reset(self):
         self.memory.reset()
         self.num_optimizations = 0
-        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
+        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+        self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+        self.target_net.load_state_dict(self.network.state_dict())
 
     def act(self, state, **kwargs):
         

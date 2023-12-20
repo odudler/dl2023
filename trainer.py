@@ -1,9 +1,4 @@
 # Base libraries
-from collections import namedtuple
-from dataclasses import dataclass
-from typing import List, Tuple, Dict, Callable, Any
-import numpy as np
-import pandas as pd
 import random
 from typing import Union
 
@@ -22,18 +17,19 @@ import utils
 
 class Trainer():
     """
-    Trainer class.
+    This class is used to train and evaluate the agents.
+    When initializing, the environment, the agent and the opponent should be passed.
     """
     def __init__(self, env: Union[Env, None],
                  agent: Agent,
                  opponent: Agent,
-                 options: Union[dict, None],
                  agent_id: int = 1,
                  opponent_id: int = 2,
                  modes: list = ['TRAIN', 'EVAL'],
                  num_episodes: Union[int, dict] = {'TRAIN': 1000, 'EVAL': 100},
                  device: torch.device = torch.device("cpu"),
                  verbose: bool = False,
+                 options: Union[dict, None] = None
                  ):
         # Environment
         self.env = env if env else Env()
@@ -49,10 +45,11 @@ class Trainer():
         self.MODES = modes
         if isinstance(num_episodes, int):
             assert(num_episodes > 0)
+            self.NUM_EPISODES = {'TRAIN': num_episodes}
         else:
             assert(value > 0 for value in num_episodes.values())
-        self.NUM_EPISODES = num_episodes
-        assert(type(device) == torch.device), "'device' should be of type 'torch.device'"
+            self.NUM_EPISODES = num_episodes
+        assert type(device) == torch.device, "'device' should be of type 'torch.device'"
         self.DEVICE = device
         self.VERBOSE = verbose
         # Parse options
@@ -116,7 +113,7 @@ class Trainer():
 
     def train(self):
         """
-        Implements the game loop
+        Implements the train loop. If self.NUM_EPISODES contains a 'EVAL' or 'TEST' key, the agent gets evaluated. 
         """
         for mode in self.MODES:
             # Reset score counter
@@ -133,9 +130,9 @@ class Trainer():
             # Play all episodes
             for i in range(1, self.NUM_EPISODES[mode] + 1):
                 # Clean up terminal line 
-                if i % 100 == 0: print('\r                                                                                                                       ', end='')
+                print('\r', end='', flush=True)
                 # Print current episode
-                print(f'\r{mode}: Running episode {i} of {self.NUM_EPISODES[mode]}. Current win ratio of AGENT is {p1_score / i:.2%}.', end='')
+                print(f'\r{mode}: Running episode {i} of {self.NUM_EPISODES[mode]}. Current win ratio of AGENT is {p1_score / i:.2%}.', end='', flush=True)
                 # Make it random who starts
                 agent_start = random.choice([True, False])
                 # Run one episode of the game and update running variables
@@ -149,7 +146,7 @@ class Trainer():
                 self.perform_periodic_updates(mode=mode, episode=i)
                 # Reset board to empty
                 self.env.reset()
-            # Current MODE Drint on new line
+            # Current MODE print on new line
             print(f'\n{mode}: Average turns per episode', turns / self.NUM_EPISODES[mode])
             print(f'{mode}: Average invalid moves per episode', invalid / self.NUM_EPISODES[mode])
             print('\n')
@@ -159,30 +156,36 @@ class Trainer():
             
     def play_episode(self, mode: str = 'TRAIN', agent: Union[None, Agent] = None, opponent: Union[None, Agent] = None, 
                      agent_start: bool = True, turns: Union[int, None] = None, invalid: Union[int, None] = None,
-                     print_game: bool = False):
+                     print_game: bool = False) -> tuple[int, Union[int, None], Union[int, None]]:
         """
-        Let agent and opponent play one episode
-        """
+        Let agent and opponent play for one episode.
+        Returns:
+            finished: -1 if game didn't finish, otherwise Player_id to indicate who won
+            turns: Total number of turns of agent
+            invalid: Total number of invalid turns
 
+        Returns:
+            (int, int | None, int | None): (finished, turns, invalid)
+        """
         # Check wether agent and opponent are given
-        agent = agent if agent != None else self.agent
-        opponent = opponent if opponent != None else self.opponent
+        agent = agent if agent is not None else self.agent
+        opponent = opponent if opponent is not None else self.opponent
 
         # Initialize episodic variables
         finished = -1
 
         # Run one game
         while finished == -1:
-            ######################
-            # Agent makes a turn #
-            ######################
-            if agent_start: # Agent starts the game
+            if agent_start:
+                ######################
+                # Agent makes a turn #
+                ######################
                 # Get current state of the game
-                state = self.env.get_state() if not type(agent) in [RandomAgent, MinimaxAgent, DeepQAgent, CQLAgent] else None
-                state_var = self.env.get_state()
+                state = self.env.get_state()
                 # Predict best next action based on this state
-                deterministic = mode in ['EVAL', 'TEST'] # Don't want randomness during evaluation
-                action = agent.act(state if state else self.env, deterministic)
+                deterministic = mode == 'EVAL' or mode == 'TEST' # Don't want randomness during evaluation
+                # Agent can use deterministic parameter if it has a use for it, otherwise it will be ignored
+                action = agent.act(state, deterministic=deterministic)
                 # Execute action
                 valid, reward, finished = self.env.step(action, self.AGENT)
                 # Print board
@@ -192,42 +195,39 @@ class Trainer():
                     print('AGENT action was', action if valid != -1 else 'invalid') 
                 # Print and track stuff for debugging
                 if self.VERBOSE:
-                    if turns != None: turns += 1
-                    if invalid != None and valid == -1: invalid += 1
+                    turns += 1
+                    if valid == -1: invalid += 1
                 # Perform learning step for a learning opponent
                 if self.agent.learning and mode == 'TRAIN':
                     next_state = self.env.get_state()
-                    self.agent.remember(state_var, action, reward, next_state, finished)
+                    self.agent.remember(state, action, reward, next_state, finished)
                     self.agent.optimize_model()
                     self.num_optimizations += 1
                 # End episode if somebody won or it is a tie
                 if finished != -1: break
-            else: # Agent doesn't start the game
+                # Opponent plays next round
+                agent_start = False
+            else:
+                #########################
+                # Opponent makes a turn #
+                #########################
+                # Get current state of the game
+                state = self.env.get_state()
+                # Predict best next action based on this state
+                action = opponent.act(state)
+                # Execute action
+                valid, _, finished = self.env.step(action, self.OPPONENT)
+                # Print board
+                if print_game:
+                    print('\n')
+                    self.env.render_console(self.env.get_state())
+                    print('OPPONENT action was', action if valid != -1 else 'invalid')
+                # End episode if somebody won or it is a tie
+                if finished != -1: break
+                # Agent plays next round
                 agent_start = True
-            #########################
-            # Opponent makes a turn #
-            #########################
-            # Get current state of the game
-            state = self.env.get_state() if not type(opponent) in [RandomAgent, MinimaxAgent, DeepQAgent, CQLAgent] else None
-            # Predict best next action based on this state
-            action = opponent.act(state if state else self.env)
-            # Execute action
-            valid, _, finished = self.env.step(action, self.OPPONENT)
-            # Print board
-            if print_game:
-                print('\n')
-                self.env.render_console(self.env.get_state())
-                print('OPPONENT action was', action if valid != -1 else 'invalid') 
-            # Print and track stuff for debugging
-            if self.VERBOSE:
-                if turns != None: turns += 1
-                if invalid != None and valid == -1: invalid += 1
-            # End episode if somebody won or it is a tie
-            if finished != -1: break
         # Return updated variables
-        if self.VERBOSE:
-            return finished, turns, invalid
-        else: return finished, None, None
+        return finished, turns, invalid
 
     def perform_periodic_updates(self, mode: str, episode: int):
         assert(episode >= 0)
@@ -241,7 +241,7 @@ class Trainer():
                 # Update opponent with current version of the agent
                 agent_class = type(self.agent)
                 assert(agent_class in [DeepQAgent, CQLAgent])
-                self.opponent = agent_class(epsilon_max=0.1, epsilon_min=0.1, device=self.DEVICE, options={'weights_init': self.agent})
+                self.opponent = agent_class(env=self.env, epsilon_max=0.1, epsilon_min=0.1, device=self.DEVICE, options={'weights_init': self.agent})
         
         # Decay randomness of opponent
         if getattr(self, 'DECAY_RANDOMNESS_OPPONENT', None):
@@ -300,9 +300,9 @@ class Trainer():
         # Play all episodes
         for i in range(1, episodes + 1):
             # Clean up terminal line 
-            if i % 100 == 0: print('\r                                                                                                                       ', end='')
+            print('\r', end='', flush=True)
             # Print current episode
-            print(f'\rEVAL: Running episode {i} of {episodes}. Ratios are [WINS: {p1_score / i:.2%} | LOSSES: {p2_score / i:.2%} | TIES: {(i - p1_score - p2_score) / i:.2%}]', end='')
+            print(f'\rEVAL: Running episode {i} of {episodes}. Ratios are [WINS: {p1_score / i:.2%} | LOSSES: {p2_score / i:.2%} | TIES: {(i - p1_score - p2_score) / i:.2%}]', end='', flush=True)
             # Make it random who starts
             start = agent_start if agent_start != None else random.choice([True, False])
             # Run one episode of the game and update running variables

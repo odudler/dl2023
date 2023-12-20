@@ -11,7 +11,7 @@ class Agent(ABC):
         self.learning = learning
 
     @abstractmethod
-    def load_model(self, loadpath):
+    def load_model(self, loadpath: str):
         pass
 
     @abstractmethod
@@ -27,5 +27,5 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def act(self, state):
+    def act(self, state: list, **kwargs): # For additional arguments such as a boolean parameter "deterministic"
         pass

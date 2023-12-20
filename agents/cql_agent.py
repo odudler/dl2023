@@ -23,11 +23,13 @@ class CQLAgent(Agent):
     Implementation of CQL DQN agent.
     For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN. 
     """
-    def __init__(self, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
+    def __init__(self, env: Env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
                  epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
                  device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
         super(CQLAgent, self).__init__(learning=True)
 
+        self.env = env
+        
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
@@ -43,7 +45,7 @@ class CQLAgent(Agent):
         self.device = device
         
         # Replay memory
-        self.memory = Memory(max_capacity=100000, device=self.device, min_capacity=1000)
+        self.memory = Memory(max_capacity=100000, min_capacity=100, device=self.device)
         
         # Parameters
         self.gamma = 1 # Discount rate
@@ -61,13 +63,13 @@ class CQLAgent(Agent):
         else: # No additional options passed, initialize new model
             self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
             self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
+            self.target_net.load_state_dict(self.network.state_dict())
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
 
-    def load_model(self, loadpath):
+    def load_model(self, loadpath: str):
         self.network.load_state_dict(torch.load(loadpath, map_location=self.device))
         self.network.eval()
-
         self.target_net.load_state_dict(torch.load(loadpath, map_location=self.device))
         self.target_net.eval()
 
@@ -78,7 +80,7 @@ class CQLAgent(Agent):
             name = f'CQLAgent_{self.num_optimizations}'
         torch.save(self.target_net.state_dict(), directory + name + '.pt')
         
-    def remember(self, state, action, reward, next_state, done):
+    def remember(self, state: list, action: list, reward: list, next_state: list, done: list):
         self.memory.push(state, action, reward, next_state, done)
 
     def optimize_model(self):
@@ -92,7 +94,7 @@ class CQLAgent(Agent):
             Q_targets_next = self.target_net(next_states.reshape(self.batch_size, -1))
             Q_targets_next = torch.where(move_validity, Q_targets_next, -1e7)
             Q_targets_next = Q_targets_next.detach().max(1)[0].unsqueeze(0)
-            Q_targets = (rewards + (self.gamma * Q_targets_next * (1 - dones))).T
+            Q_targets = (rewards + (self.gamma * Q_targets_next * (1 - dones))).T # TODO: Modify this, dones is not boolean! dones takes values -1, 0, 1, 2
 
         Q_a_s = self.network(states.reshape(self.batch_size, -1))
 
@@ -123,14 +125,14 @@ class CQLAgent(Agent):
     def reset(self):
         self.memory.reset()
         self.num_optimizations = 0
-        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
-        self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
+        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+        self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
+        self.target_net.load_state_dict(self.network.state_dict())
 
-    def act(self, env: Env, deterministic: bool = False):
+    def act(self, state: list, **kwargs):
 
         # Epsilon-greedy policy
-        if deterministic or random.random() > self.epsilon:
-            state = env.get_state()
+        if kwargs['deterministic'] or random.random() > self.epsilon:
             state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
             self.network.eval()
             with torch.no_grad():
@@ -139,7 +141,7 @@ class CQLAgent(Agent):
             action = torch.argmax(q_values, dim=1)
             action = int(action)
         else:
-            action = env.random_valid_action()
+            action = self.env.random_valid_action()
         return action
 
     def cql_loss(self, q_values, current_action):

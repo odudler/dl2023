@@ -14,13 +14,13 @@ import torch.nn as nn
 from agents.agent_interface import Agent
 from env import Env
 
-Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'mask'])
+Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'done'])
 
 class Memory(object):
     """
     Implementation of the memory class.
     """
-    def __init__(self, max_capacity: int, device: torch.device = torch.device("cpu"), min_capacity: int = 10000):
+    def __init__(self, max_capacity: int, min_capacity: int = 10000, device: torch.device = torch.device("cpu")):
         self.memory = deque([], maxlen=max_capacity)
         self.device = device
         self.min_capacity = min_capacity
