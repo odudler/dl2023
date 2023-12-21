@@ -87,16 +87,19 @@ class DeepQAgent(Agent):
         
         self.network.train()
         states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)
-        states = states.reshape(self.batch_size, -1)
-        actions = actions.to(torch.int64).reshape(self.batch_size, -1)
-        rewards = rewards.reshape(self.batch_size, -1)
-        next_states = next_states.reshape(self.batch_size, -1)
+        
+        move_validity = next_states[:, 0, :] == 0 # For full columns, q-values should be -inf (-1e7) since this move will be invalid (See below next_q_values)
+        states = states.reshape(self.batch_size, -1).to(self.device)
+        actions = actions.to(torch.int64).reshape(self.batch_size, -1).to(self.device)
+        rewards = rewards.reshape(self.batch_size, -1).to(self.device)
+        next_states = next_states.reshape(self.batch_size, -1).to(self.device)
         dones[dones >= 0] = 1 # Game finished (finished == 0, 1, 2)
         dones[dones < 0] = 0 # Game did not finish (finished == -1)
-        dones = dones.reshape(self.batch_size, -1)
+        dones = dones.reshape(self.batch_size, -1).to(self.device)
         
         q_values = self.network(states).gather(dim=1, index=actions) # Get Q-Values for the actions 
-        next_q_values = self.target_net(next_states).max(dim=1, keepdim=True)[0].detach() # Get max Q-Values for the next_states. Detach since no gradient calc needed
+        next_q_values = self.target_net(next_states).detach() # Detach since no gradient calc needed
+        next_q_values = torch.where(move_validity, next_q_values, -1e7).max(dim=1, keepdim=True)[0] # Get max Q-Values for the next_states.
         expected_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.criterion(q_values, expected_q_values)

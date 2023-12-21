@@ -27,5 +27,5 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def act(self, state: list, **kwargs): # For additional arguments such as a boolean parameter "deterministic"
+    def act(self, state: list, **kwargs): # For additional arguments such as a boolean parameter "deterministic", use kwargs
         pass
