@@ -78,6 +78,8 @@ class DeepQAgent(Agent):
     def optimize_model(self):
         if not self.memory.start_optimizing():
             return
+
+        self.network.train()
         minibatch = self.memory.sample(self.batch_size)
         for state, action, reward, next_state, done in minibatch:
             # Predict next state

@@ -87,6 +87,7 @@ class CQLAgent(Agent):
         if not self.memory.start_optimizing():
             return
         
+        self.network.train()
         states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)
         move_validity = next_states[:, 0, :] == 0
         # Predict next state

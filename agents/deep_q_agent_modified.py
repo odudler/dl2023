@@ -13,7 +13,7 @@ import torch.optim as optim
 # Local imports
 from agents.agent_interface import Agent
 from networks import DDQN
-from utils import Memory
+from utils import Memory, soft_update
 from env import Env
 
 class DeepQAgent(Agent):
@@ -46,6 +46,7 @@ class DeepQAgent(Agent):
 
         # Parameters
         self.gamma = 1 # Discount rate, can be set to 1 for finite-horizon games
+        self.tau = 1e-3 # Soft update param
         
         self.num_optimizations = 0
         
@@ -83,13 +84,31 @@ class DeepQAgent(Agent):
     def optimize_model(self):
         if not self.memory.start_optimizing():
             return
-        minibatch = self.memory.sample(self.batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            pass
-            # Backpropagation
+        
+        self.network.train()
+        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)
+        states = states.reshape(self.batch_size, -1)
+        actions = actions.to(torch.int64).reshape(self.batch_size, -1)
+        rewards = rewards.reshape(self.batch_size, -1)
+        next_states = next_states.reshape(self.batch_size, -1)
+        dones[dones >= 0] = 1 # Game finished (finished == 0, 1, 2)
+        dones[dones < 0] = 0 # Game did not finish (finished == -1)
+        dones = dones.reshape(self.batch_size, -1)
+        
+        q_values = self.network(states).gather(dim=1, index=actions) # Get Q-Values for the actions 
+        next_q_values = self.target_net(next_states).max(dim=1, keepdim=True)[0].detach() # Get max Q-Values for the next_states. Detach since no gradient calc needed
+        expected_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
+        loss = self.criterion(q_values, expected_q_values)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+        
+        # Update target network
+        soft_update(self.network, self.target_net, self.tau)
         
         self.num_optimizations += 1
 
