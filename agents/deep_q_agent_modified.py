@@ -122,17 +122,19 @@ class DeepQAgent(Agent):
         self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
         self.target_net.load_state_dict(self.network.state_dict())
 
-    def act(self, state, **kwargs):
-        
-        # Epsilon-greedy policy
-        if random.random() > self.epsilon:
-            state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
-            self.network.eval()
-            with torch.no_grad():
-                q_values = self.network(state)
-            self.network.train()
-            action = torch.argmax(q_values, dim=1)
-            action = int(action)
+    def act(self, state: torch.Tensor, **kwargs):
+        # Ensure state is on correct device and in correct form
+        state = state.to(self.device).float()
+
+        # Parse input for determinstic keyword argument
+        if getattr(kwargs, 'deterministic', None) != None:
+            deterministic = kwargs['deterministic']
         else:
-            action = self.env.random_valid_action()
-        return action
+            deterministic = False
+
+        # Epsilon-greedy policy
+        if deterministic or random.random() > self.epsilon:
+            with torch.no_grad():
+                q_values = self.network(state.flatten())
+                return torch.argmax(q_values).cpu().numpy()
+        return self.env.random_valid_action()

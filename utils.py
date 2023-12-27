@@ -58,6 +58,8 @@ class Memory(object):
                     next_states = torch.stack(next_states, dim=0).to(self.device).float()
                 else: # (PLAYERS x HEIGHT x WIDTH)
                     next_states = torch.concat(next_states, dim=0).to(self.device)
+            else: # Cast to tensor
+                next_states = torch.tensor(next_states, device=self.device)
             if type(dones[0]) == torch.Tensor:
                 dones = torch.concat(dones, dim=0).to(self.device)
             else: # Cast to tensor

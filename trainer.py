@@ -12,6 +12,7 @@ from agents.random_agent import RandomAgent
 from agents.minimax_agent import MinimaxAgent
 from agents.minimax_agent_old import OldMinimaxAgent
 from agents.deep_q_agent import DeepQAgent
+from agents.deep_q_agent_modified import DeepQAgent
 from agents.cql_agent import CQLAgent
 import utils
 
