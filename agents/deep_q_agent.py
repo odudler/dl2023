@@ -20,12 +20,12 @@ class DeepQAgent(Agent):
     """
     Implementation of the deep Q Agent, performing Q learning with neural networks.
     """
-    def __init__(self, env: Env, state_size: int = 42, action_size: int = 7, hidden_size: int = 128, hidden_layers: int = 4, batch_size: int = 10,
-                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
-                 device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
+    def __init__(self, env: Env, state_size: int = 42, action_size: int = 7, hidden_size: int = 128, hidden_layers: int = 4, batch_size: int = 10, epsilon_max: float = 1.0, epsilon_min: float = 0.1, 
+                epsilon_decay: float = 0.999, device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
         super(DeepQAgent, self).__init__(learning=True)
         
         self.env = env
+        self.device = device
         
         self.state_size = state_size
         self.action_size = action_size
@@ -38,8 +38,6 @@ class DeepQAgent(Agent):
         self.epsilon_min = epsilon_min
         self.epsilon = epsilon_max
         self.epsilon_decay = epsilon_decay
-        
-        self.device = device
         
         # Replay memory
         self.memory = Memory(max_capacity=100000, min_capacity=100, device=self.device)
@@ -60,6 +58,9 @@ class DeepQAgent(Agent):
         
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.network.parameters(), lr=0.001)
+        self.batch_size = batch_size
+
+        self.num_optimizations = 0
 
     def load_model(self, loadpath: str):
         self.network.load_state_dict(torch.load(loadpath, map_location=self.device))
@@ -72,7 +73,7 @@ class DeepQAgent(Agent):
             name = f'DQAgent_{self.num_optimizations}'
         torch.save(self.network.state_dict(), directory + name + '.pt')
         
-    def remember(self, state: list, action: list, reward: list, next_state: list, done: list):
+    def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
 
     def optimize_model(self):
@@ -82,18 +83,20 @@ class DeepQAgent(Agent):
         self.network.train()
         minibatch = self.memory.sample(self.batch_size)
         for state, action, reward, next_state, done in minibatch:
+            # Ensure stuff is on the correct device
+            state = state.to(self.device).float()
+            next_state = next_state.to(self.device).float()
+
             # Predict next state
             target = reward
             if not done:
-                next_state_tensor = torch.tensor(next_state, dtype=torch.float32, device=self.device)
                 with torch.no_grad():
-                    target = reward + self.gamma * torch.max(self.network(next_state_tensor.flatten())).item()
-            state_tensor = torch.tensor(state, dtype=torch.float32, device=self.device)
-            target_f = self.network(state_tensor.flatten())
+                    target = reward + self.gamma * torch.max(self.network(next_state.flatten())).item()
+            target_f = self.network(state.flatten())
             target_f[action] = target
             # Backpropagation
             self.optimizer.zero_grad()
-            loss = self.criterion(target_f, self.network(state_tensor.flatten()))
+            loss = self.criterion(target_f, self.network(state.flatten()))
             loss.backward()
             self.optimizer.step()
 
@@ -107,17 +110,19 @@ class DeepQAgent(Agent):
         self.num_optimizations = 0
         self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
 
-    def act(self, state, **kwargs):
-        
-        # Epsilon-greedy policy
-        if random.random() > self.epsilon:
-            state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
-            self.network.eval()
-            with torch.no_grad():
-                q_values = self.network(state)
-            self.network.train()
-            action = torch.argmax(q_values, dim=1)
-            action = int(action)
+    def act(self, state: torch.Tensor, **kwargs):
+        # Ensure state is on correct device and in correct form
+        state = state.to(self.device).float()
+
+        # Parse input for determinstic keyword argument
+        if getattr(kwargs, 'deterministic', None) != None:
+            deterministic = kwargs['deterministic']
         else:
-            action = self.env.random_valid_action()
-        return action
+            deterministic = False
+
+        # Epsilon-greedy policy
+        if deterministic or random.random() > self.epsilon:
+            with torch.no_grad():
+                q_values = self.network(state.flatten())
+                return torch.argmax(q_values).cpu().numpy()
+        return self.env.random_valid_action()

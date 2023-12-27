@@ -20,5 +20,5 @@ class RandomAgent(Agent):
     def reset(self):
         pass
 
-    def act(self, env: Env):
+    def act(self, env: Env, **kwargs):
         return env.random_valid_action()

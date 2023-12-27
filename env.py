@@ -1,9 +1,12 @@
+"Custom Connect-Four Environment"
 from board import ConnectFourField
 import random
 from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
+from utils import get_opponent
+import torch
 
 FIELD_COLUMNS = 7
 FIELD_ROWS = 6
@@ -13,9 +16,6 @@ NUM_FIELDS = FIELD_COLUMNS * FIELD_ROWS
 ASSUMPTIONS:
 Player 1 is the learning player, and has ID 1
 Player 2 is the Opponent and has ID 2
-
-Player 1 Always starts the Game
-TODO: Random Selection of who can start would be better for later!
 """
 
 class Env():
@@ -55,7 +55,7 @@ class Env():
         """
         if self.finished != -1:
             raise ValueError(f"Game is already finished, Player {self.finished} won!")
-        if action >= self.field.num_columns or action < 0:
+        if (action >= self.field.num_columns) or (action < 0):
             raise ValueError(f"Action is not valid")
         
         valid, finished = self.field.play(player, action)
@@ -80,11 +80,13 @@ class Env():
             float: Reward
         """
         if valid == -1: # Invalid move receives penalty
-            return -0.1
+            return -25
         elif self.finished == player: # Player who did the move won
-            return 1
-        elif self.finished == 3-player: # Corresponds to Opponent
-            return -1
+            return 50
+        elif self.finished == get_opponent(player): # Corresponds to Opponent
+            return -50
+        elif self.finished == 0: # Treat a tie the same as a loss, as our goal is winning
+            return -50
         else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
             return 0 #self.field.utilityValue(player) / 10
         
@@ -102,6 +104,66 @@ class Env():
             return self.field.field
         else:
             return self.field
+        """
+        Get the current state of the environment. Returns different versions of the state of the game depending on the input arguments.
+
+        Args:
+            state_type (str)
+            return_type (str, optional): If 'list', returns directly the field as a list, otherwise return the ConnectFourField object. Defaults to 'list'.
+
+        Returns:
+            list or ConnectFourField: The game board.
+        """
+    
+    def get_state(self, state_type: str = 'list', for_memory: bool = False, player: Union[int, None] = None, device: torch.device = torch.device('cpu')) -> Union[torch.Tensor, list, ConnectFourField]:
+        """
+        Returns the state of the environment, i.e. the game board.
+
+        Args:
+            state_type (str, optional): Type of state to return. Can be in ['boolean', 'list', 'class', 'tensor']. Defaults to 'list'.
+            for_memory (bool, optional): Wether the state will be used for saving in memory (may return a different type than type specifies if set to True). Defaults to False.
+            player (Union[int, None], optional): Only important if state is 'boolean'. Sets the order in which the boards are returned. Defaults to None.
+            device (torch.device, optional): Which device the board tensor should be on. Defaults to torch.device('cpu').
+
+        Raises:
+            TypeError: An invalid player ID was passed. Only relevant for state_type='boolean'.
+
+        Returns:
+            Union[torch.Tensor, list, ConnectFourField]: The current state of the game in its appropriate form.
+        """
+
+        if state_type == 'boolean':
+            # Return a tensor of shape [1, NUM_PLAYERS, NUM_ROWS, NUM_COLUMNS] with boolean indicators (0 or 1) in positions where the agent has a chip
+            # This enables player-independent training of agents
+            if player == None or player < 1 or player > 2: raise TypeError('A valid player ID must be passed as an argument.')
+            state_tensor = torch.tensor(self.field.field)
+            board1 = torch.where(state_tensor == player, 1., 0.)
+            board2 = torch.where(state_tensor == get_opponent(player), 1., 0.)
+            b = torch.concat([board1, board2], axis=0).reshape(2, self.field.num_rows, self.field.num_columns)
+            if not for_memory: b.to(device)
+            return b.float().unsqueeze(0) # Convert to float and unsqueeze in batch dimension
+        elif state_type == 'env':
+            if for_memory:
+                # Return list for saving in memory
+                return self.field.field
+            else:
+                # Return the environment
+                return self
+        elif state_type == 'list':
+            # Return a list
+            return self.field.field
+        elif state_type == 'class':
+            # if for_memory:
+            #     # Return list for saving in memory
+            #     return self.field.field
+            # else:
+            #     # Return a ConnectFourField
+            return self.field
+        elif state_type == 'tensor':
+            # Return a PyTorch tensor
+            state_tensor = torch.tensor(self.field.field)
+            if not for_memory: state_tensor.to(device)
+            return state_tensor
     
     # NOTE: we had to invert the state here such that the agent that is copied over works
     # because the agent is trained to set '1's and not '2's

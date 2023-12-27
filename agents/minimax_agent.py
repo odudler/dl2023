@@ -35,7 +35,7 @@ class MinimaxAgent(Agent):
     def act(self, state: list, **kwargs):
         # Choose best predicted action
         if random.random() > self.epsilon:
-            return self.best_predicted_action(self.env.get_state(return_type="board"), self.max_depth, self.player)
+            return self.best_predicted_action(self.env.get_state(state_type='class'), self.max_depth, self.player)
         else:
             return self.env.random_valid_action()
         

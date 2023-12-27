@@ -1,3 +1,6 @@
+"""Implementation of CQL DQN agent. 
+For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN."""
+
 # Base libraries
 import numpy as np
 import random
@@ -14,40 +17,32 @@ from torch.nn.utils import clip_grad_norm_
 
 # Local imports
 from agents.agent_interface import Agent
-from networks import DDQN
-from utils import Memory, soft_update
+from networks import DDQN, CNN
+from utils import Memory, soft_update, select_highest_valid_action, weights_init_
 from env import Env
 
 class CQLAgent(Agent):
-    """
-    Implementation of CQL DQN agent.
-    For more information see https://github.com/BY571/CQL/tree/main/CQL-DQN. 
-    """
-    def __init__(self, env: Env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 4, 
-                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999,
+    def __init__(self, env: Env, state_size: Union[int, torch.Size, torch.Tensor] = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 3, batch_size: int = 32, 
+                 epsilon_max: float = 1.0, epsilon_min: float = 0.1, epsilon_decay: float = 0.999, network_type: str = 'DDQN',
                  device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
         super(CQLAgent, self).__init__(learning=True)
-
-        self.env = env
         
+        self.device = device
+        self.network_type = network_type
+        self.env = env
+
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
         self.hidden_layers = hidden_layers
         self.batch_size = batch_size
+        self.memory = Memory(max_capacity=1000, device=self.device, min_capacity=self.batch_size) # Replay memory
 
-        # Exploration rate (epsilon-greedy)
         self.epsilon_max = epsilon_max
+        self.epsilon = epsilon_max # Exploration rate (epsilon-greedy)
         self.epsilon_min = epsilon_min
-        self.epsilon = epsilon_max
         self.epsilon_decay = epsilon_decay
-        
-        self.device = device
-        
-        # Replay memory
-        self.memory = Memory(max_capacity=100000, min_capacity=100, device=self.device)
-        
-        # Parameters
+
         self.gamma = 1 # Discount rate
         self.tau = 1e-3 # Soft update param
 
@@ -55,51 +50,62 @@ class CQLAgent(Agent):
 
         if type(options) == dict:
             self.options = options
+
             if type(self.options['weights_init']) == CQLAgent: # Initialize with weights from passed model
                 self.network = copy.deepcopy(self.options['weights_init'].network).eval().to(self.device)
                 self.target_net = copy.deepcopy(self.options['weights_init'].target_net).eval().to(self.device)
             else:
                 raise ValueError(f'Cannot copy weigths to new model, invalid model type {type(self.options["weights_init"])}.')
         else: # No additional options passed, initialize new model
-            self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
-            self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).to(self.device)
-            self.target_net.load_state_dict(self.network.state_dict())
+            assert network_type in ["DDQN", "CNN"], "Network type has to be one of ['DDQN', 'CNN']"
+            if network_type == "DDQN":
+                self.network = DDQN(state_size, action_size, hidden_size, hidden_layers).apply(weights_init_).to(self.device)
+                self.target_net = DDQN(state_size, action_size, hidden_size, hidden_layers).apply(weights_init_).to(self.device)
+            elif network_type == "CNN": # CNN
+                self.network = CNN(state_size, action_size).apply(weights_init_).to(self.device)
+                self.target_net = CNN(state_size, action_size).apply(weights_init_).to(self.device)
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
 
-    def load_model(self, loadpath: str):
-        self.network.load_state_dict(torch.load(loadpath, map_location=self.device))
+    def load_model(self, loadpath):
+        self.network.load_state_dict(torch.load(loadpath, map_location=torch.device(self.device)))
         self.network.eval()
-        self.target_net.load_state_dict(torch.load(loadpath, map_location=self.device))
+
+        self.target_net.load_state_dict(torch.load(loadpath, map_location=torch.device(self.device)))
         self.target_net.eval()
+    
+    def remember(self, state: torch.Tensor, action: torch.Tensor, reward, next_state: torch.Tensor, done):
+        self.memory.push(state, action, reward, next_state, done)
 
     def save_model(self, name: str = '', directory: str = './saved_models/'):
         if not os.path.isdir(directory):
             os.mkdir(directory)
         if name == '': # If no name was given
-            name = f'CQLAgent_{self.num_optimizations}'
+            name = f'CQLAgent_{self.network_type}_{self.num_optimizations}'
         torch.save(self.target_net.state_dict(), directory + name + '.pt')
-        
-    def remember(self, state: list, action: list, reward: list, next_state: list, done: list):
-        self.memory.push(state, action, reward, next_state, done)
 
     def optimize_model(self):
+        # Only start optimizing once memory has reached batch size
         if not self.memory.start_optimizing():
             return
-        
-        self.network.train()
+        # Get samples from memory
         states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size, split_transitions=True)
-        move_validity = next_states[:, 0, :] == 0
+
         # Predict next state
         with torch.no_grad():
-            Q_targets_next = self.target_net(next_states.reshape(self.batch_size, -1))
-            Q_targets_next = torch.where(move_validity, Q_targets_next, -1e7)
-            Q_targets_next = Q_targets_next.detach().max(1)[0].unsqueeze(0)
-            Q_targets = (rewards + (self.gamma * Q_targets_next * (1 - dones))).T # TODO: Modify this, dones is not boolean! dones takes values -1, 0, 1, 2
+            if type(self.target_net) == DDQN:
+                Q_targets_next = self.target_net(next_states.flatten(start_dim=1)).detach().max(1)[0].unsqueeze(1) # (B x 1)
+            else:
+                Q_targets_next = self.target_net(next_states).detach().max(1)[0].unsqueeze(1) # (B x 1)
+            # Q_targets_next = self.target_net(next_states.reshape(self.batch_size, -1)).detach().max(1)[0].unsqueeze(0)
+            Q_targets = (rewards + (self.gamma * Q_targets_next * (1 - dones)))
 
-        Q_a_s = self.network(states.reshape(self.batch_size, -1))
+        # Q_a_s = self.network(states.reshape(self.batch_size, -1))
+        if type(self.target_net) == DDQN:
+            Q_a_s = self.network(states.flatten(start_dim=1))
+        else:
+            Q_a_s = self.network(states)
 
-        actions = actions.unsqueeze(-1).type(dtype=torch.int64)
         Q_expected = Q_a_s.gather(1, actions)
 
         cql1_loss = self.cql_loss(Q_a_s, actions)
@@ -117,7 +123,7 @@ class CQLAgent(Agent):
         # Update target network
         soft_update(self.network, self.target_net, self.tau)
 
-        # # Update epsilon
+        # Update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
@@ -126,23 +132,48 @@ class CQLAgent(Agent):
     def reset(self):
         self.memory.reset()
         self.num_optimizations = 0
-        self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
-        self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).eval().to(self.device)
-        self.target_net.load_state_dict(self.network.state_dict())
+        if self.network_type == 'DDQN':
+            self.network = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).apply(weights_init_).to(self.device)
+            self.target_net = DDQN(self.state_size, self.action_size, self.hidden_size, self.hidden_layers).apply(weights_init_).to(self.device)
+        elif self.network_type == 'CNN':
+            self.network = CNN(self.state_size, self.action_size).apply(weights_init_).to(self.device)
+            self.target_net = CNN(self.state_size, self.action_size).apply(weights_init_).to(self.device)
+        else:
+            raise ValueError("Network type needs to be one of ['DDQN', 'CNN'].")
 
-    def act(self, state: list, **kwargs):
 
+    def act(self, state: torch.Tensor, deterministic: bool = False, *args) -> Union[torch.Tensor, int]:
+        """Returns the best estimated action based on the current state of the board.
+
+        Args:
+            env (Env): The current environment the agent is operating in.
+            state (torch.Tensor): The current state of the game in appropriate form.
+            deterministic (bool, optional): If true, sets the probability of choosing a random action to zero. Defaults to False.
+
+        Returns:
+            Union[torch.Tensor, int]: The current estimate of the reward-maximizing action or a random valid action.
+        """
         # Epsilon-greedy policy
-        if kwargs['deterministic'] or random.random() > self.epsilon:
-            state = torch.tensor(state, dtype=torch.float, device=self.device).reshape(1, -1)
+        if deterministic or random.random() > self.epsilon:
             self.network.eval()
             with torch.no_grad():
-                q_values = self.network(state)
+                if self.network_type == 'DDQN':
+                    if state.dim() == 2:
+                        state = state.unsqueeze(0)
+                    action_values = self.network(state.to(self.device).float().flatten(start_dim=1))
+                else:
+                    action_values = self.network(state.to(self.device).float())
+                valid_cols = torch.tensor(self.env.field.get_valid_cols(), device=self.device)
+            
+            action = select_highest_valid_action(action_values, valid_cols, device=self.device).cpu()
             self.network.train()
-            action = torch.argmax(q_values, dim=1)
-            action = int(action)
         else:
-            action = self.env.random_valid_action()
+            if state.dim() == 3:
+                action = torch.tensor([self.env.random_valid_action() for _ in range(state.shape[0])])
+            else:
+                action = torch.tensor([self.env.random_valid_action()])
+            while action.dim() < 2:
+                action = action.unsqueeze(0)
         return action
 
     def cql_loss(self, q_values, current_action):
