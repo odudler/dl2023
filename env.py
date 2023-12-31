@@ -80,13 +80,13 @@ class Env():
             float: Reward
         """
         if valid == -1: # Invalid move receives penalty
-            return -25
+            return -0.1
         elif self.finished == player: # Player who did the move won
-            return 50
+            return 1
         elif self.finished == get_opponent(player): # Corresponds to Opponent
-            return -50
+            return -1
         elif self.finished == 0: # Treat a tie the same as a loss, as our goal is winning
-            return -50
+            return 0
         else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
             return 0 #self.field.utilityValue(player) / 10
         
