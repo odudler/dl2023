@@ -1,5 +1,4 @@
-"Implementation of the Decision Transformer Agent"
-from .agent_interface import Agent
+from agents.agent_interface import Agent
 
 import torch
 import torch.nn as nn
@@ -12,6 +11,9 @@ from transformers import DecisionTransformerConfig, DecisionTransformerModel
 from utils import Memory
 
 class DT_Agent(Agent):
+    """
+    NOTE: This class was not used, it can be ignored. See dt_notebook.ipynb for DecisionTransformer implementation.
+    """
     def __init__(self, env, state_size: int = 42, action_size: int = 7, batch_size: int = 4, learning_rate = 0.0001):
         self.env = env
         self.state_size = state_size
@@ -44,7 +46,7 @@ class DT_Agent(Agent):
 
     def act(self, state):
         # Act based on decision transformer output
-        state, actions, rewards, target_return, timesteps, attention_mask = 
+        state, actions, rewards, target_return, timesteps, attention_mask = None
         with torch.no_grad():
             state_preds, action_preds, return_preds = model(
                 states=state,

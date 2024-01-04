@@ -1,4 +1,4 @@
-""" Implementation of Connect-Four Field """
+""" Implementation of the Connect-Four Field """
 
 class ConnectFourField():
     """
@@ -51,7 +51,7 @@ class ConnectFourField():
             list: valid locations for next move
         """
         valid_locations = []
-        for i in range(0,self.num_columns):
+        for i in range(0, self.num_columns):
             if not self.is_column_full(i):
                 valid_locations.append(i)
         return valid_locations
@@ -130,10 +130,10 @@ class ConnectFourField():
 
         return []
     
-    def play(self, player: int, action: int) -> tuple[int, int]:
+    def play(self, player: int, action: int) -> tuple[bool, int]:
         """
         Returns tuple: (successful, finished).
-        valid: 0 if move was valid, -1 if the given action is illegal (column full)
+        valid: True if action was successful, False if action is illegal (column full)
         finished: -1: not finished, 0: tie, x: player x won
 
         Args:
@@ -146,11 +146,11 @@ class ConnectFourField():
         
         row = self.get_col_free_entry(action)
         if row == -1:
-            return -1, 0
+            return False, -1
         
         self.field[row][action] = player
 
-        return 0, self.is_finished()
+        return True, self.is_finished()
 
     # Adapted from https://github.com/AbdallahReda/Connect4/blob/master/utility.py#L6
     def countSequence(self, player: int, length: int):

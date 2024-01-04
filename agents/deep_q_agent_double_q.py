@@ -9,7 +9,6 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils import clip_grad_norm_
 
 # Local imports
 from agents.agent_interface import Agent
@@ -17,15 +16,14 @@ from networks import FCNN, CNN
 from utils import Memory, soft_update
 from env import Env
 
-class CQLAgent(Agent):
+class DDQAgent(Agent):
     """
-    Implementation of CQL agent. The network type can be chosen, either 'FCNN' or 'CNN'.
-    Adapted from https://github.com/BY571/CQL/tree/main/CQL-DQN. 
+    Implementation of the deep Q Agent with target network (double deep q agent), performing Q learning with neural networks.
     """
     def __init__(self, env: Env, state_size: int = 42, action_size: int = 7, hidden_size: int = 64, hidden_layers: int = 2, batch_size: int = 128,
                  epsilon_max: float = 1.0, epsilon_min: float = 0.01, epsilon_decay: float = 0.999, network_type: str = 'FCNN',
                  device: torch.device = torch.device("cpu"), options: Union[None, dict] = None):
-        super(CQLAgent, self).__init__(learning=True)
+        super(DDQAgent, self).__init__(learning=True)
         
         self.env = env
         
@@ -56,7 +54,7 @@ class CQLAgent(Agent):
 
         if type(options) == dict:
             self.options = options
-            if type(self.options['weights_init']) == CQLAgent: # Initialize with weights from passed model
+            if type(self.options['weights_init']) == DDQAgent: # Initialize with weights from passed model
                 self.network = copy.deepcopy(self.options['weights_init'].network).eval().to(self.device)
                 self.target_net = copy.deepcopy(self.options['weights_init'].target_net).eval().to(self.device)
             else:
@@ -85,7 +83,7 @@ class CQLAgent(Agent):
         if not os.path.isdir(directory):
             os.mkdir(directory)
         if name == '': # If no name was given
-            name = f'CQLAgent_{self.network_type}_{self.num_optimizations}'
+            name = f'DDQAgent_{self.network_type}_{self.num_optimizations}'
         torch.save(self.network.state_dict(), directory + name + '.pt')
         print(f"Model was saved in {directory} as {name}.pt")
         
@@ -111,23 +109,15 @@ class CQLAgent(Agent):
         dones = dones.reshape(self.batch_size, -1).to(self.device)
         
         with torch.no_grad():
-            Q_targets_next = self.target_net(next_states).detach()
-            Q_targets_next = torch.where(move_validity, Q_targets_next, -1e7).max(dim=1, keepdim=True)[0] # Get max Q-Values for the next_states.
-            Q_targets = rewards + (1 - dones) * self.gamma * Q_targets_next
+            next_q_values = self.target_net(next_states).detach() # Detach since no gradient calc needed
+            next_q_values = torch.where(move_validity, next_q_values, -1e7).max(dim=1, keepdim=True)[0] # Get max Q-Values for the next_states.
+            expected_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
-        Q_a_s = self.network(states)
-        Q_expected = Q_a_s.gather(dim=1, index=actions)
-
-        cql1_loss = self.cql_loss(Q_a_s, actions)
-
-        bellman_error = self.criterion(Q_expected, Q_targets)
+        q_values = self.network(states).gather(dim=1, index=actions) # Get Q-Values for the actions
         
-        q1_loss = cql1_loss + 0.5 * bellman_error
-
-        # Backpropagation with gradient clipping
+        loss = self.criterion(q_values, expected_q_values)
         self.optimizer.zero_grad()
-        q1_loss.backward()
-        clip_grad_norm_(self.network.parameters(), 1.)
+        loss.backward()
         self.optimizer.step()
         
         # Update target network
@@ -178,25 +168,3 @@ class CQLAgent(Agent):
         else:
             action = self.env.random_valid_action()
         return action
-
-    def cql_loss(self, q_values, current_action):
-        """Compute CQL loss for a batch of Q-values and actions."""
-
-        logsumexp = torch.logsumexp(q_values, dim=1, keepdim=True)
-        q_a = q_values.gather(1, current_action)
-
-        return (logsumexp - q_a).mean()
-    
-    def train_mode(self):
-        if getattr(self, 'original_epsilon', None) == None:
-            return
-        # Restore original epsilon
-        self.epsilon = self.original_epsilon
-        # Delete temporary attribute
-        delattr(self, 'original_epsilon')
-    
-    def eval_mode(self):
-        # Save original epsilon in temporary attribute
-        self.original_epsilon = self.epsilon
-        # Set randomness to zero for evaluation
-        self.epsilon = 0

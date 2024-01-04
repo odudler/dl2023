@@ -4,6 +4,7 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
+from copy import deepcopy
 
 FIELD_COLUMNS = 7
 FIELD_ROWS = 6
@@ -17,14 +18,20 @@ Player 2 is the Opponent and has ID 2
 class Env():
     """
     Implementation of the connect 4 environment.
+    The Opponent is integrated (Either minimax or random).
     """
-    def __init__(self, num_cols: int = FIELD_COLUMNS, num_rows: int = FIELD_ROWS):
+    def __init__(self, opponent_type: str, minimax_depth: int = 3, minimax_epsilon: float = 0.1, num_cols: int = FIELD_COLUMNS, num_rows: int = FIELD_ROWS):
         for v in [num_cols, num_rows]:
             if (4 > v or v > 10):
                 raise ValueError("Field dimension should be between 4 and 10")
         self.field = ConnectFourField(num_cols, num_rows)
         # -1: ongoing, 0: tie, x: player x won
         self.finished = -1
+        
+        # Either minimax or random
+        self.opponent_type = opponent_type
+        self.minimax_depth = minimax_depth
+        self.minimax_epsilon = minimax_epsilon # Randomness parameter
 
     def reset(self):
         """
@@ -33,7 +40,7 @@ class Env():
         self.field.reset()
         self.finished = -1
 
-    def step(self, action: int, player: int) -> tuple[bool, float, int]:
+    def step(self, action: int) -> tuple[bool, float, int]:
         """
         Environment step method.
         Returns:
@@ -43,7 +50,6 @@ class Env():
 
         Args:
             action (int): One of the columns (action is in range(FIELD_COLUMNS))
-            player (int): Player_ID
 
         Returns:
             (bool, float, int): (valid, reward, finished)
@@ -54,15 +60,32 @@ class Env():
         if action >= self.field.num_columns or action < 0:
             raise ValueError(f"Action is not valid")
         
-        valid, finished = self.field.play(player, action)
-        if not valid:
-            # If action was invalid -> no state change, return -1 for finished, since self.finished == -1
-            return False, self.compute_reward(valid, player), -1
+        # Player plays
+        valid, finished = self.field.play(player=1, action=action)
+        
+        # If game not finished, opponent plays
+        if finished == -1:
+            finished = self.opponent_play()
         
         self.finished = finished
-        return valid, self.compute_reward(valid, player), finished
+        return valid, self.compute_reward(valid), finished
 
-    def compute_reward(self, valid: bool, player: int) -> float:
+    def opponent_play(self) -> int:
+        opponent_action = self.get_opponent_action()
+        _, finished = self.field.play(player=2, action=opponent_action)
+        return finished
+    
+    def get_opponent_action(self) -> int:
+        if self.opponent_type == 'minimax':
+            if random.random() > self.minimax_epsilon:
+                return self.minimax_best_predicted_action(board=self.field, depth=self.minimax_depth, player=2)
+            else:
+                return self.random_valid_action()
+        # If not minimax, then always random actions
+        else:
+            return self.random_valid_action()
+        
+    def compute_reward(self, valid: bool) -> float:
         """
         Computes the reward.
 
@@ -75,9 +98,9 @@ class Env():
         """
         if not valid: # Invalid move receives penalty
             return -0.1
-        elif self.finished == player: # Player who did the move won
+        elif self.finished == 1: # Player who did the move won
             return 1
-        elif self.finished == 3-player or self.finished == 0: # Corresponds to Opponent. Treat a tie the same as a loss, as our goal is winning
+        elif self.finished == 2 or self.finished == 0: # Corresponds to Opponent. Treat a tie the same as a loss, as our goal is winning
             return -1
         else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
             return 0.05
@@ -194,3 +217,101 @@ class Env():
 
         # Display the plot
         plt.show()
+    
+    """
+    ######################
+    # INTEGRATED MINIMAX #
+    ######################
+    """
+    # Starting from the middle row and going outwards from there can decrease search times by a factor of over 10 
+    # as the middle is in general the better column to play
+    def reorder_array(self, arr):
+        n = len(arr)
+        middle = n // 2  # Get the index of the middle element
+        reordered = [arr[middle]]  # Start with the middle element
+
+        for i in range(1, middle+1):
+            # Add the element to the right and then to the left of the middle, if they exist
+            if middle + i < n:
+                reordered.append(arr[middle + i])
+            if middle - i >= 0:
+                reordered.append(arr[middle - i])
+
+        return reordered
+
+    def minimax_best_predicted_action(self, board: ConnectFourField, depth: int = 4, player: int = 1):
+        # Get array of possible moves
+        validMoves = board.get_valid_cols()
+        # Choose random starting move
+        # shuffle(validMoves)
+        validMoves = self.reorder_array(validMoves)
+
+        bestMove  = validMoves[0]
+        bestScore = float("-inf")
+
+        # Initial alpha & beta values for alpha-beta pruning
+        alpha = float("-inf")
+        beta = float("inf")
+
+        if player == 2: opponent = 1
+        else: opponent = 2
+    
+        # Go through all of those moves
+        for move in validMoves:
+            # Create copy so as not to change the original board
+            tempBoard = deepcopy(board)
+            tempBoard.play(player, move)
+
+            # Call min on that new board
+            boardScore = self.minimizeBeta(tempBoard, depth - 1, alpha, beta, player, opponent)
+            if boardScore > bestScore:
+                bestScore = boardScore
+                bestMove = move
+        
+        return bestMove
+
+    def minimizeBeta(self, board: ConnectFourField, depth: int, a, b, player: int, opponent: int):
+        # Get all valid moves
+        validMoves = board.get_valid_cols()
+        
+        # RETURN CONDITION
+        # Check to see if game over
+        if depth == 0 or len(validMoves) == 0 or board.is_finished() != -1:
+            return board.utilityValue(player)
+        
+        # CONTINUE TREE SEARCH
+        beta = b
+        # If end of tree evaluate scores
+        for move in validMoves:
+            boardScore = float("inf")
+            # Else continue down tree as long as ab conditions met
+            if a < beta:
+                tempBoard = deepcopy(board)
+                tempBoard.play(opponent, move)
+                boardScore = self.maximizeAlpha(tempBoard, depth - 1, a, beta, player, opponent)
+            if boardScore < beta:
+                beta = boardScore
+        return beta
+
+    def maximizeAlpha(self, board: ConnectFourField, depth: int, a, b, player: int, opponent: int):
+        # Get all valid moves
+        validMoves = board.get_valid_cols()
+
+        # RETURN CONDITION
+        # Check to see if game over
+        if depth == 0 or len(validMoves) == 0 or board.is_finished() != -1:
+            return board.utilityValue(player)
+
+        # CONTINUE TREE SEARCH
+        alpha = a        
+        # If end of tree, evaluate scores
+        for move in validMoves:
+            boardScore = float("-inf")
+            # Else continue down tree as long as ab conditions met
+            if alpha < b:
+                tempBoard = deepcopy(board)
+                tempBoard.play(player, move)
+                boardScore = self.minimizeBeta(tempBoard, depth - 1, alpha, b, player, opponent)
+            if boardScore > alpha:
+                alpha = boardScore
+        return alpha

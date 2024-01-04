@@ -10,7 +10,7 @@ class MinimaxAgent(Agent):
     Implementation of the minimax agent.
     Adapted from https://github.com/AbdallahReda/Connect4/blob/master/minimaxAlphaBeta.py 
     """
-    def __init__(self, env: Env, depth: int = 4, epsilon: float = 0.3, player: int = 1):
+    def __init__(self, env: Env, depth: int = 3, epsilon: float = 0.1, player: int = 2):
         super(MinimaxAgent, self).__init__(learning=False)
         
         self.env = env
@@ -35,7 +35,7 @@ class MinimaxAgent(Agent):
     def act(self, state: list, **kwargs):
         # Choose best predicted action
         if random.random() > self.epsilon:
-            return self.best_predicted_action(self.env.get_state(state_type='class'), self.max_depth, self.player)
+            return self.best_predicted_action(self.env.get_state(return_type="board"), self.max_depth, self.player)
         else:
             return self.env.random_valid_action()
         

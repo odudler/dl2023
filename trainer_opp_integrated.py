@@ -6,7 +6,7 @@ from typing import Union
 import torch
 
 # Local imports
-from env import Env
+from env_opp_integrated import Env
 from agents.agent_interface import Agent
 from agents.random_agent import RandomAgent
 from agents.minimax_agent import MinimaxAgent
@@ -20,12 +20,11 @@ class Trainer():
     """
     This class is used to train and evaluate the agents.
     When initializing, the environment, the agent and the opponent should be passed.
+    Player 1 is the learning player, and has ID 1.
+    Player 2 is the opponent and has ID 2. The opponent is integrated in the environment.
     """
     def __init__(self, env: Union[Env, None],
                  agent: Agent,
-                 opponent: Agent,
-                 agent_id: int = 1,
-                 opponent_id: int = 2,
                  modes: list = ['TRAIN', 'EVAL'],
                  num_episodes: Union[int, dict] = {'TRAIN': 1000, 'EVAL': 100},
                  device: torch.device = torch.device("cpu"),
@@ -34,11 +33,7 @@ class Trainer():
                  ):
         self.env = env
         self.agent = agent
-        self.opponent = opponent
         # Hyperparameters
-        assert all([id in [1, 2] for id in [agent_id, opponent_id]]), "Agent and Opponent IDs should be 1 or 2"
-        self.AGENT = agent_id
-        self.OPPONENT = opponent_id
         assert all(mode in ['TRAIN', 'EVAL'] for mode in modes), "Mode not accepted. Accepted modes: 'TRAIN' and 'EVAL'"
         self.MODES = modes
         if isinstance(num_episodes, int):
@@ -159,9 +154,9 @@ class Trainer():
             # Save final model
             if mode == 'TRAIN': self.agent.save_model()
             
-    def play_episode(self, mode: str = 'TRAIN', agent: Union[None, Agent] = None, opponent: Union[None, Agent] = None, 
-                     agent_start: bool = True, turns: Union[int, None] = None, invalid: Union[int, None] = None,
-                     print_game: bool = False) -> tuple[int, Union[int, None], Union[int, None], float, int]:
+    def play_episode(self, mode: str = 'TRAIN', agent: Union[None, Agent] = None, agent_start: bool = True, 
+                     turns: Union[int, None] = None, invalid: Union[int, None] = None,
+                     print_game: bool = False) -> tuple[int, Union[int, None], Union[int, None]]:
         """
         Let agent and opponent play for one episode.
         Returns:
@@ -172,79 +167,49 @@ class Trainer():
         Returns:
             (int, int | None, int | None, float, int): (finished, turns, invalid, episode_reward, steps)
         """
-        # Check whether agent and opponent are given
+        # Check whether agent is given
         agent = agent if agent is not None else self.agent
-        opponent = opponent if opponent is not None else self.opponent
 
         # Initialize episodic variables
         finished = -1
         # Don't want randomness during evaluation
         deterministic = mode == 'EVAL'
-        # If agent didn't start game, skip optimization after opponent play
-        agent_state = None
-        agent_reward = None
         episode_reward = 0
         steps = 0
-        
+
         # Run one game
         while finished == -1:
-            ######################
-            # Agent makes a turn #
-            ######################
             if agent_start:
                 # Get current state of the game
-                agent_state = self.env.get_state()
+                state = self.env.get_state()
                 # Predict best next action based on this state. Agent can use deterministic parameter if it has a use for it, otherwise it will be ignored
-                agent_action = agent.act(agent_state, deterministic=deterministic)
+                action = agent.act(state, deterministic=deterministic)
                 # Execute action
-                agent_valid, agent_reward, agent_finished = self.env.step(agent_action, self.AGENT)
-                episode_reward += agent_reward
-                steps += 1
+                valid, reward, finished = self.env.step(action)
+                episode_reward += reward
+                steps += 2 # Approximately 2 turns per step
                 next_state = self.env.get_state()
                 # Print board
                 if print_game:
                     print('\n')
                     self.env.render_console(next_state)
-                    print('AGENT action was', agent_action if agent_valid else 'invalid')
-                    print(f'Reward was {agent_reward}') 
+                    print('AGENT action was', action if valid else 'invalid')
+                    print(f'Reward was {reward}') 
                 # Print and track stuff for debugging
                 if self.VERBOSE:
                     turns += 1
-                    if not agent_valid: invalid += 1
-                # End episode if agent won or tie
-                if agent_finished != -1:
-                    finished = agent_finished
-                    # Optimize model when game was finished by agent, otherwise we optimize after the opponent made his move (see below)
-                    if self.agent.learning and mode == 'TRAIN':
-                        self.agent.remember(agent_state, agent_action, agent_reward, next_state, agent_finished)
-                        self.agent.optimize_model()
-                        self.num_optimizations += 1
-                    break
+                    if not valid: invalid += 1
+                # Perform learning step for a learning agent
+                if self.agent.learning and mode == 'TRAIN':
+                    self.agent.remember(state, action, reward, next_state, finished)
+                    self.agent.optimize_model()
+                    self.num_optimizations += 1
+                # End episode if somebody won or it is a tie
+                if finished != -1: break
             else:
+                finished = self.env.opponent_play()
+                steps += 1
                 agent_start = True
-            #########################
-            # Opponent makes a turn #
-            #########################
-            # Get current state of the game
-            opponent_state = self.env.get_state()
-            # Predict best next action based on this state
-            opponent_action = opponent.act(state=opponent_state)
-            # Execute action
-            opponent_valid, opponent_reward, finished = self.env.step(opponent_action, self.OPPONENT)
-            episode_reward -= opponent_reward
-            steps += 1
-            next_state = self.env.get_state()
-            # Print board
-            if print_game:
-                print('\n')
-                self.env.render_console(self.env.get_state())
-                print('OPPONENT action was', opponent_action if opponent_valid else 'invalid')
-                print(f'Reward was {agent_reward}')
-            # Optimize model everytime the opponent made his move. -opponent_reward because we want to minimize opponents reward
-            if agent_state and self.agent.learning and mode == 'TRAIN':
-                self.agent.remember(agent_state, agent_action, -opponent_reward, next_state, finished)
-                self.agent.optimize_model()
-                self.num_optimizations += 1
         # Return updated variables
         return finished, turns, invalid, episode_reward, steps
 
@@ -290,7 +255,7 @@ class Trainer():
                     self.agent.save_model()
                     self.times_saved += 1
     
-    def eval(self, agent: Agent, opponent: Union[Agent, None] = None, episodes: int = 100, agent_start: Union[bool, None] = None, print_last_n_games: Union[int, None] = None):
+    def eval(self, agent: Agent, episodes: int = 100, agent_start: Union[bool, None] = None, print_last_n_games: Union[int, None] = None):
         """
         Quickly evaluate the relative performance of one agent vs another with no training.
 
@@ -298,8 +263,6 @@ class Trainer():
         """
 
         # Parse input
-        if not opponent:
-            opponent = RandomAgent(env=self.env)
         if not print_last_n_games:
             print_last_n_games = 0
         else:
@@ -320,7 +283,7 @@ class Trainer():
             # Make it random who starts
             start = agent_start if agent_start is not None else random.choice([True, False])
             # Run one episode of the game and update running variables
-            finished, turns, invalid, episode_reward, steps = self.play_episode('EVAL', agent=agent, opponent=opponent, agent_start=start, turns=turns, invalid=invalid, print_game=i>(episodes-print_last_n_games))
+            finished, turns, invalid, episode_reward, steps = self.play_episode('EVAL', agent=agent, agent_start=start, turns=turns, invalid=invalid, print_game=i>(episodes-print_last_n_games))
             episode_rewards.append(episode_reward)
             episode_steps.append(steps)
             # Update scores with winner
