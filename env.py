@@ -88,7 +88,7 @@ class Env():
         elif self.finished == 0: # Treat a tie the same as a loss, as our goal is winning
             return 0
         else: # Try and give some reward simple for the fact that the player made a move and hasn't lost yet.
-            return 0 #self.field.utilityValue(player) / 10
+            return 0.05 #self.field.utilityValue(player) / 10
         
     def get_state(self, return_type: str = 'list') -> Union[list, ConnectFourField]:
         """
