@@ -85,7 +85,7 @@ class Trainer():
         if 'REPLACE_FOR_EVALUATION' in keys:
             assert(type(options['REPLACE_FOR_EVALUATION']) == bool)
             self.REPLACE_FOR_EVALUATION = options['REPLACE_FOR_EVALUATION']
-            if 'REPLACE_FOR_EVALUATION_BY' in keys:
+            if 'REPLACE_FOR_EVALUATION_BY' in keys and self.REPLACE_FOR_EVALUATION:
                 assert(isinstance(options['REPLACE_FOR_EVALUATION_BY'], Agent))
                 self.REPLACE_FOR_EVALUATION_BY = options['REPLACE_FOR_EVALUATION_BY']
             else:
@@ -282,11 +282,11 @@ class Trainer():
         # Save model periodically
         if getattr(self, 'AUTOSAVE', None):
             if self.AUTOSAVE_TYPE == 'NUM_OPTIMIZATIONS': # Periodic in number of optimizations
-                if self.num_optimizations > self.AUTOSAVE_PERIOD * (self.times_saved + 1):
+                if self.num_optimizations >= self.AUTOSAVE_PERIOD * (self.times_saved + 1):
                     self.agent.save_model()
                     self.times_saved += 1
             else: # Episodic periodicity
-                if episode > self.AUTOSAVE_PERIOD * (self.times_saved + 1):
+                if episode >= self.AUTOSAVE_PERIOD * (self.times_saved + 1):
                     self.agent.save_model()
                     self.times_saved += 1
     

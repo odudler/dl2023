@@ -124,6 +124,7 @@ def plot_rewards_steps(rewards, steps):
     rewards = np.array(rewards)
     steps = np.array(steps)
     
+    indices = np.arange(len(rewards))
     if len(rewards) > 1000:
         indices = np.linspace(0, len(rewards) - 1, 1000, dtype=int)
         rewards = rewards[indices]
@@ -133,8 +134,8 @@ def plot_rewards_steps(rewards, steps):
     plt.figure(figsize=(15, 4))
     plt.title('Episode rewards and episode steps')
     plt.xlabel('Episode')
-    plt.plot(steps, color='blue', label='Episode steps')
-    plt.plot(rewards, color='red', label='Episode rewards')
+    plt.plot(indices, steps, color='blue', label='Episode steps')
+    plt.plot(indices, rewards, color='red', label='Episode rewards')
     plt.legend()
     
     plt.show()
