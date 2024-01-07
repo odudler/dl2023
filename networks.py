@@ -14,7 +14,7 @@ class FCNN(nn.Module):
     Fully connected neural network. This class implements a neural network with a variable number of hidden layers and hidden units.
     Used for CQLAgent and DeepQAgent.
     """
-    def __init__(self, state_size, action_size, layer_size, hidden_layers: int = 1):
+    def __init__(self, state_size, action_size, layer_size, hidden_layers):
         super(FCNN, self).__init__()
 
         self.layers = nn.ModuleList()

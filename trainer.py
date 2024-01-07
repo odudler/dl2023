@@ -154,7 +154,7 @@ class Trainer():
             print(f'\n{mode}: Average turns per episode', turns / self.NUM_EPISODES[mode])
             print(f'{mode}: Average invalid moves per episode', invalid / self.NUM_EPISODES[mode])
             print('\n')
-            plot_rewards_steps(episode_rewards, episode_steps)
+            # plot_rewards_steps(episode_rewards, episode_steps)
         
             # Save final model
             if mode == 'TRAIN': self.agent.save_model()
@@ -179,7 +179,7 @@ class Trainer():
         # Initialize episodic variables
         finished = -1
         # Don't want randomness during evaluation
-        deterministic = mode == 'EVAL'
+        deterministic = False
         # If agent didn't start game, skip optimization after opponent play
         agent_state = None
         agent_reward = None
@@ -338,4 +338,4 @@ class Trainer():
         print(f'\nEVAL: Average turns per episode', turns / episodes)
         print(f'EVAL: Average invalid moves per episode', invalid / episodes)
         print('\n')
-        plot_rewards_steps(episode_rewards, episode_steps)
+        # plot_rewards_steps(episode_rewards, episode_steps)

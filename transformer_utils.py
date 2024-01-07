@@ -191,7 +191,7 @@ def train_model(model, training_args, dataset, collator, store_path=None):
 
     return model
 
-def evaluate_model(model, opponent, episodes, target_return_start, render):
+def evaluate_model(model, opponent, episodes, target_return_start, render, agent_start=None):
     # This cell is supposed to evaluate the Decision Transformer against a MinimaxAgent (or RandomAgent) for a fixed amount of Episodes
     env = Env()
     max_ep_len = 21
@@ -216,6 +216,22 @@ def evaluate_model(model, opponent, episodes, target_return_start, render):
 
         timesteps = torch.tensor(0, device=device, dtype=torch.long).reshape(1, 1)
         for t in range(max_ep_len):
+            if agent_start == False:
+                # opp_action = opponent.act(env.get_state_inverted(), deterministic=False) # THIS FOR CQL & DQN AGENTS
+                opp_action = opponent.act(env.field) # THIS FOR RANDOM & MINIMAX AGENTS
+                #print(f"Opponent Action: {opp_action}")
+                #print(env.field.field)
+                valid, _, finished = env.step(int(opp_action), 2)
+                state = np.array(env.get_state()).flatten()
+
+                if finished != -1:
+                    if finished == 1:
+                        games_won += 1
+                    if finished == 2:
+                        games_lost += 1
+                    break
+            # if agent_start == True or (agent_start == None and random.choice[(True, False)]):
+
             actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
             rewards = torch.cat([rewards, torch.zeros(1, device=device)])
 
@@ -247,11 +263,14 @@ def evaluate_model(model, opponent, episodes, target_return_start, render):
                 if finished == 2:
                     games_lost += 1
                 break
-            opp_action = opponent.act(env.field)
-            #print(f"Opponent Action: {opp_action}")
-            #print(env.field.field)
-            valid, _, finished = env.step(int(opp_action), 2)
-            state = np.array(env.get_state()).flatten()
+            
+            if agent_start == True:
+                # opp_action = opponent.act(env.get_state_inverted(), deterministic=False) # THIS FOR CQL & DQN AGENTS
+                opp_action = opponent.act(env.field) # THIS FOR RANDOM & MINIMAX AGENTS
+                #print(f"Opponent Action: {opp_action}")
+                #print(env.field.field)
+                valid, _, finished = env.step(int(opp_action), 2)
+                state = np.array(env.get_state()).flatten()
 
             cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
             states = torch.cat([states, cur_state], dim=0)
