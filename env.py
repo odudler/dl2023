@@ -99,20 +99,19 @@ class Env():
     
     # NOTE: we had to invert the state here such that the agent that is copied over works
     # because the agent is trained to set '1's and not '2's
-    def get_state_inverted(self, return_type: str = 'list'):
-        assert(return_type in ['list', 'class'])
-        connect_four_field = copy.deepcopy(self.field)
-        num_rows, num_columns = np.shape(connect_four_field.field)
-        for i in range(num_rows):
-            for j in range(num_columns):
-                if connect_four_field.field[i][j] == 1:
-                    connect_four_field.field[i][j] = 2
-                elif connect_four_field.field[i][j] == 2:
-                    connect_four_field.field[i][j] = 1
-        if return_type == 'list':
-            return connect_four_field.field 
-        else:
-            return connect_four_field
+    def get_state_inverted(self):
+        """
+        Returns the inverted state of the environment, i.e. the inverted game board.
+
+        Returns:
+            list: The inverted game board
+        """
+        field = copy.deepcopy(self.field.field)
+        field = np.array(field)
+        field[field == 1] = 2
+        field[field == 2] = 1
+        
+        return field.tolist()
     
     def random_valid_action(self) -> int:
         """

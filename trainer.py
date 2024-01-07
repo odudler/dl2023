@@ -225,10 +225,10 @@ class Trainer():
             #########################
             # Opponent makes a turn #
             #########################
-            # Get current state of the game
-            opponent_state = self.env.get_state()
+            # Get current inverted state of the game (Inversion of the state is needed because all q-agents were trained to set 1's, not 2's)
+            opponent_state = self.env.get_state_inverted()
             # Predict best next action based on this state
-            opponent_action = opponent.act(state=opponent_state)
+            opponent_action = opponent.act(state=opponent_state, deterministic=deterministic) # RandomAgent and MinimaxAgent will not use 'opponent_state'
             # Execute action
             opponent_valid, opponent_reward, finished = self.env.step(opponent_action, self.OPPONENT)
             episode_reward -= opponent_reward

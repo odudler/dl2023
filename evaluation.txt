@@ -1,0 +1,192 @@
+All q-agents (DDQAgent and CQLAgent, with CNN and FCNN) trained against MinimaxAgent opponent (minimax_depth = 2 and minimax_epsilon = 0.3).
+The following parameters were used (see notebook.ipynb):
+
+num_episodes = {'TRAIN': 2000, 'EVAL': 100}
+with_options = False
+# Agent
+agent_type = ...               			# DDQAgent, CQLAgent
+agent_network_type = ...            	# CNN, FCNN
+# Opponent
+opponent_type = 'MinimaxAgent'         	# DDQAgent, DeepQAgent, CQLAgent, MinimaxAgent, RandomAgent
+minimax_depth = 2
+minimax_epsilon = 0.3
+# Same for all agents
+epsilon_max = 1
+epsilon_min = 0.01
+epsilon_decay = 0.9997
+
+The result were evaluated for 1000 episodes and 3 different random seeds.
+
+Observations:
+- Q-Agents play deterministically. Two possibilities if they play against each other:
+1. One agent always wins regardless of whether he starts the game or not.
+2. Agents have a 50% probability of winning, depending on whether they start the game or not.
+
+RANDOM:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+RANDOM vs. RANDOM									50.80%		10.65
+RANDOM vs. RANDOM									49.60%		10.51
+RANDOM vs. RANDOM									47.70%		10.51				49.37\pm1.28	
+
+RANDOM vs. MINIMAX									4.50%		7.33
+RANDOM vs. MINIMAX									3.70%		7.09
+RANDOM vs. MINIMAX									6.40%		7.23				4.87\pm1.13
+
+RANDOM vs. DDQAgent_FCNN_RS41.pt					39.70%		9.601
+RANDOM vs. DDQAgent_FCNN_RS42.pt					42.30%		8.391
+RANDOM vs. DDQAgent_FCNN_RS43.pt					27.10%		8.321				36.37\pm6.64
+
+RANDOM vs. CQLAgent_FCNN_RS41.pt					18.20%		4.946
+RANDOM vs. CQLAgent_FCNN_RS42.pt					16.90%		5.109
+RANDOM vs. CQLAgent_FCNN_RS43.pt					14.70%		5.284				16.60\pm1.44
+
+RANDOM vs. DDQAgent_CNN_RS41.pt						51.40%		10.088
+RANDOM vs. DDQAgent_CNN_RS42.pt						29.00%		8.558
+RANDOM vs. DDQAgent_CNN_RS43.pt						53.00%		9.07				44.47\pm10.96
+
+RANDOM vs. CQLAgent_CNN_RS41.pt						32.90%		5.989
+RANDOM vs. CQLAgent_CNN_RS42.pt						35.10%		6.407
+RANDOM vs. CQLAgent_CNN_RS43.pt						33.20%		5.99				33.73\pm0.97
+
+
+MINIMAX:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+MINIMAX vs. RANDOM									97.20%		6.598
+MINIMAX vs. RANDOM									97.00%		6.65
+MINIMAX vs. RANDOM									96.50%		6.628				96.90\pm0.29
+
+MINIMAX vs. MINIMAX									46.30%		7.53
+MINIMAX vs. MINIMAX									49.60%		7.661
+MINIMAX vs. MINIMAX									50.00%		7.679				48.63\pm1.66
+
+-> For minimax vs. minimax, ties make up about 1% of games, thus the "low" win rate.
+
+MINIMAX vs. DDQAgent_FCNN_RS41.pt					94.00%		6.855
+MINIMAX vs. DDQAgent_FCNN_RS42.pt					95.60%		6.117
+MINIMAX vs. DDQAgent_FCNN_RS43.pt					92.70%		7.244				94.10\pm1.19	
+
+MINIMAX vs. CQLAgent_FCNN_RS41.pt					85.00%		5.059
+MINIMAX vs. CQLAgent_FCNN_RS42.pt					86.00%		5.473
+MINIMAX vs. CQLAgent_FCNN_RS43.pt					85.40%		5.517				85.47\pm0.41
+
+MINIMAX vs. DDQAgent_CNN_RS41.pt					96.10%		6.075
+MINIMAX vs. DDQAgent_CNN_RS42.pt					80.60%		7.133
+MINIMAX vs. DDQAgent_CNN_RS43.pt					98.20%		5.547				91.63\pm7.85
+
+MINIMAX vs. CQLAgent_CNN_RS41.pt					91.80%		5.323
+MINIMAX vs. CQLAgent_CNN_RS42.pt					89.80%		5.041
+MINIMAX vs. CQLAgent_CNN_RS43.pt					89.50%		5.815				90.37\pm1.02
+
+
+DDQAgent_FCNN:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+DDQAgent_FCNN_RS41.pt vs. RANDOM					60.60%		9.62			
+DDQAgent_FCNN_RS42.pt vs. RANDOM					59.80%		8.98
+DDQAgent_FCNN_RS43.pt vs. RANDOM					72.90%		8.686				64.43\pm6.00
+
+DDQAgent_FCNN_RS41.pt vs. MINIMAX					10.50%		7.882
+DDQAgent_FCNN_RS42.pt vs. MINIMAX					2.20%		4.903
+DDQAgent_FCNN_RS43.pt vs. MINIMAX					6.20%		6.058				6.30\pm3.39
+
+DDQAgent_FCNN_RS41.pt vs. DDQAgent_FCNN_RS41.pt		51.70%		13.585
+DDQAgent_FCNN_RS42.pt vs. DDQAgent_FCNN_RS42.pt		48.60%		12.888
+DDQAgent_FCNN_RS43.pt vs. DDQAgent_FCNN_RS43.pt		50.10%		12.501				50.13\pm1.27
+
+DDQAgent_FCNN_RS41.pt vs. CQLAgent_FCNN_RS41.pt		100.00%		5.0
+DDQAgent_FCNN_RS42.pt vs. CQLAgent_FCNN_RS42.pt		0.00%		3.486
+DDQAgent_FCNN_RS43.pt vs. CQLAgent_FCNN_RS43.pt		50.10%		5.503				50.03\pm40.82
+
+DDQAgent_FCNN_RS41.pt vs. DDQAgent_CNN_RS41.pt		0.00%		7.551
+DDQAgent_FCNN_RS42.pt vs. DDQAgent_CNN_RS42.pt		0.00%		8.57
+DDQAgent_FCNN_RS43.pt vs. DDQAgent_CNN_RS43.pt		100.00%		7.998				33.33\pm47.14
+
+DDQAgent_FCNN_RS41.pt vs. CQLAgent_CNN_RS41.pt		0.00%		7.864
+DDQAgent_FCNN_RS42.pt vs. CQLAgent_CNN_RS42.pt		48.60%		7.43
+DDQAgent_FCNN_RS43.pt vs. CQLAgent_CNN_RS43.pt		0.00%		5.503				16.20\pm22.91
+
+
+CQLAgent_FCNN:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+CQLAgent_FCNN_RS41.pt vs. RANDOM					81.20%		5.258
+CQLAgent_FCNN_RS42.pt vs. RANDOM					83.90%		5.442
+CQLAgent_FCNN_RS43.pt vs. RANDOM					83.40%		5.767				82.83\pm1.17
+
+CQLAgent_FCNN_RS41.pt vs. MINIMAX					14.10%		4.748
+CQLAgent_FCNN_RS42.pt vs. MINIMAX					12.80%		5.057
+CQLAgent_FCNN_RS43.pt vs. MINIMAX					16.90%		5.182				14.60\pm1.71
+
+CQLAgent_FCNN_RS41.pt vs. DDQAgent_FCNN_RS41.pt		100.00%		4.0
+CQLAgent_FCNN_RS42.pt vs. DDQAgent_FCNN_RS42.pt		100.00%		4.0
+CQLAgent_FCNN_RS43.pt vs. DDQAgent_FCNN_RS43.pt		50.10%		7.002				83.37\pm23.52
+
+CQLAgent_FCNN_RS41.pt vs. CQLAgent_FCNN_RS41.pt		51.70%		15.517
+CQLAgent_FCNN_RS42.pt vs. CQLAgent_FCNN_RS42.pt		100.00%		12.972
+CQLAgent_FCNN_RS43.pt vs. CQLAgent_FCNN_RS43.pt		100.00%		14.998				83.90\pm22.77
+
+CQLAgent_FCNN_RS41.pt vs. DDQAgent_CNN_RS41.pt		100.00%		4.0
+CQLAgent_FCNN_RS42.pt vs. DDQAgent_CNN_RS42.pt		100.00%		4.0
+CQLAgent_FCNN_RS43.pt vs. DDQAgent_CNN_RS43.pt		100.00%		4.0					100.00\pm0.00
+
+CQLAgent_FCNN_RS41.pt vs. CQLAgent_CNN_RS41.pt		51.70%		8.068
+CQLAgent_FCNN_RS42.pt vs. CQLAgent_CNN_RS42.pt		51.40%		10.542
+CQLAgent_FCNN_RS43.pt vs. CQLAgent_CNN_RS43.pt		100.00%		9.497				67.70\pm22.84
+
+
+DDQAgent_CNN:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+DDQAgent_CNN_RS41.pt vs. RANDOM						45.80%		10.288
+DDQAgent_CNN_RS42.pt vs. RANDOM						60.40%		10.242
+DDQAgent_CNN_RS43.pt vs. RANDOM						41.50%		9.483				49.23\pm8.09
+
+DDQAgent_CNN_RS41.pt vs. MINIMAX					3.50%		6.892
+DDQAgent_CNN_RS42.pt vs. MINIMAX					7.00%		6.938
+DDQAgent_CNN_RS43.pt vs. MINIMAX					1.10%		5.407				3.87\pm2.42
+
+DDQAgent_CNN_RS41.pt vs. DDQAgent_FCNN_RS41.pt		0.00%		7.068
+DDQAgent_CNN_RS42.pt vs. DDQAgent_FCNN_RS42.pt		0.00%		9.084
+DDQAgent_CNN_RS43.pt vs. DDQAgent_FCNN_RS43.pt		0.00%		3.499				0.00\pm0.00
+
+DDQAgent_CNN_RS41.pt vs. CQLAgent_FCNN_RS41.pt		0.00%		4.517
+DDQAgent_CNN_RS42.pt vs. CQLAgent_FCNN_RS42.pt		100.00%		13.486
+DDQAgent_CNN_RS43.pt vs. CQLAgent_FCNN_RS43.pt		49.90%		3.499				49.97\pm40.82
+
+DDQAgent_CNN_RS41.pt vs. DDQAgent_CNN_RS41.pt		100.00%		10.687
+DDQAgent_CNN_RS42.pt vs. DDQAgent_CNN_RS42.pt		0.00%		10.86
+DDQAgent_CNN_RS43.pt vs. DDQAgent_CNN_RS43.pt		49.90%		8.998				49.97\pm40.82
+
+DDQAgent_CNN_RS41.pt vs. CQLAgent_CNN_RS41.pt		51.70%		8.0
+DDQAgent_CNN_RS42.pt vs. CQLAgent_CNN_RS42.pt		48.60%		11.458
+DDQAgent_CNN_RS43.pt vs. CQLAgent_CNN_RS43.pt		49.90%		8.493				50.07\pm1.27
+
+CQLAgent_CNN:
+------------------------------------------------------------------------------------------------------------------
+													Winrate		Avg turns/episode	MEAN+-STD of WR
+CQLAgent_CNN_RS41.pt vs. RANDOM						79.30%		5.394
+CQLAgent_CNN_RS42.pt vs. RANDOM						80.20%		5.382
+CQLAgent_CNN_RS43.pt vs. RANDOM						86.40%		5.288				81.97\pm3.16
+
+CQLAgent_CNN_RS41.pt vs. MINIMAX					14.60%		4.86
+CQLAgent_CNN_RS42.pt vs. MINIMAX					13.90%		4.929
+CQLAgent_CNN_RS43.pt vs. MINIMAX					14.30%		5.076				14.27\pm0.29
+
+CQLAgent_CNN_RS41.pt vs. DDQAgent_FCNN_RS41.pt		51.70%		3.517
+CQLAgent_CNN_RS42.pt vs. DDQAgent_FCNN_RS42.pt		100.00%		4.0
+CQLAgent_CNN_RS43.pt vs. DDQAgent_FCNN_RS43.pt		100.00%		4.501				83.90\pm22.77
+
+CQLAgent_CNN_RS41.pt vs. CQLAgent_FCNN_RS41.pt		51.70%		3.517
+CQLAgent_CNN_RS42.pt vs. CQLAgent_FCNN_RS42.pt		48.60%		3.486
+CQLAgent_CNN_RS43.pt vs. CQLAgent_FCNN_RS43.pt		49.90%		3.499				50.07\pm1.27
+
+CQLAgent_CNN_RS41.pt vs. DDQAgent_CNN_RS41.pt		100.00%		4.0
+CQLAgent_CNN_RS42.pt vs. DDQAgent_CNN_RS42.pt		100.00%		4.0
+CQLAgent_CNN_RS43.pt vs. DDQAgent_CNN_RS43.pt		49.90%		3.499				83.30\pm23.62
+
+CQLAgent_CNN_RS41.pt vs. CQLAgent_CNN_RS41.pt		51.70%		11.068
+CQLAgent_CNN_RS42.pt vs. CQLAgent_CNN_RS42.pt		48.60%		15.402
+CQLAgent_CNN_RS43.pt vs. CQLAgent_CNN_RS43.pt		49.90%		8.992				50.07\pm1.27
+
