@@ -60,7 +60,7 @@ class CNN(nn.Module):
     def forward(self, z):
         """
         Forward pass. Here we assume that the agent has ID = 1, and the opponent ID = 2.
-        Input tensor will be transformed to a tensor of shape (batch_size, 6, 7, 2). The last dimension holds boolean indicators (0 and 1), indicating where each player has his coins.
+        Input tensor will be transformed to a tensor of shape (batch_size, 2, 6, 7). The second dimension holds boolean indicators (0 and 1), indicating where each player has his coins.
         
         Args:
             z (torch.Tensor): Input, state with shape (batch_size, 42)

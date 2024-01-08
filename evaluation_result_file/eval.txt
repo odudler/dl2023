@@ -1,0 +1,314 @@
+(For the best viewing experience, open with Windows Notepad)
+
+All q-agents (DDQAgent and CQLAgent, with CNN and FCNN) were trained against MinimaxAgent opponent (minimax_depth = 2 and minimax_epsilon = 0.3).
+The following parameters were used for training (see notebook.ipynb):
+
+num_episodes = {'TRAIN': 2000, 'EVAL': 100}
+with_options = False
+# Agent
+agent_type = ...               		# DDQAgent, CQLAgent, MinimaxAgent, RandomAgent
+agent_network_type = ...            	# CNN, FCNN
+# Opponent
+opponent_type = 'MinimaxAgent'         	# DDQAgent, CQLAgent, MinimaxAgent, RandomAgent
+minimax_depth = 2
+minimax_epsilon = 0.3
+# Same for all agents
+epsilon_max = 1
+epsilon_min = 0.01
+epsilon_decay = 0.9997
+
+For evaluation, we used the following settings. During evaluation we allowed some randomness for the Q-Agents (epsilon_max = 0.1).
+To reproduce the results we got for the Q-Agents, you only need to set the agent_type/opponent_type and agent_network_type/opponent_network_type:
+
+episodes = 1000
+# Agent
+agent_type = ...                 	# DDQAgent, CQLAgent, MinimaxAgent, RandomAgent
+agent_network_type = ...              	# CNN, FCNN
+# Opponent
+opponent_type = ...              	# DDQAgent, CQLAgent, MinimaxAgent, RandomAgent
+opponent_network_type = ...           	# CNN, FCNN
+minimax_depth = 2
+minimax_epsilon = 0.3
+epsilon_max = 0.1 # Allow some randomness during evaluation
+epsilon_min = 0.01
+epsilon_decay = 0.9997 # No decay during evaluation
+
+The result were evaluated for 1000 episodes and 3 different random seeds.
+
+===============================================================================================================
+Q-AGENTS (Given A vs. B, A always starts; winrate is given as the winrate of agent A)
+===============================================================================================================
+							Winrate		Avg. Number of Turns	MEAN+-STD of WR
+===============================================================================================================
+
+RANDOM
+---------------------------------------------------------------------------------------------------------------
+RANDOM 41 vs. RANDOM 41					58.40%		10.806
+RANDOM 42 vs. RANDOM 42					54.70%		11.025
+RANDOM 43 vs. RANDOM 43					54.40%		10.865			55.83\pm2.23
+
+RANDOM 41 vs. MINIMAX 41				4.50%		7.331
+RANDOM 42 vs. MINIMAX 42				3.70%		7.092
+RANDOM 43 vs. MINIMAX 43				6.40%		7.232			4.87\pm1.39
+
+RANDOM 41 vs. DDQAgent_FCNN_RS41			50.80%		9.73
+RANDOM 42 vs. DDQAgent_FCNN_RS42			46.50%		9.042
+RANDOM 43 vs. DDQAgent_FCNN_RS43			33.20%		8.988			43.50\pm9.18
+
+RANDOM 41 vs. CQLAgent_FCNN_RS41			26.00%		5.926
+RANDOM 42 vs. CQLAgent_FCNN_RS42			22.30%		6.057
+RANDOM 43 vs. CQLAgent_FCNN_RS43			22.10%		6.123			23.47\pm2.20
+
+RANDOM 41 vs. DDQAgent_CNN_RS41				58.80%		10.298
+RANDOM 42 vs. DDQAgent_CNN_RS42				34.60%		9.284
+RANDOM 43 vs. DDQAgent_CNN_RS43				59.10%		9.399			50.83\pm14.06
+
+RANDOM 41 vs. CQLAgent_CNN_RS41				44.80%		7.168
+RANDOM 42 vs. CQLAgent_CNN_RS42				43.60%		6.913
+RANDOM 43 vs. CQLAgent_CNN_RS43				41.40%		7.122			43.27\pm1.72
+
+MINIMAX
+---------------------------------------------------------------------------------------------------------------
+MINIMAX 41 vs. RANDOM 41				98.30%		5.986
+MINIMAX 42 vs. RANDOM 42				97.80%		6.094
+MINIMAX 43 vs. RANDOM 43				97.20%		6.042			97.77\pm0.55
+
+MINIMAX 41 vs. MINIMAX 41				65.70%		7.777
+MINIMAX 42 vs. MINIMAX 42				66.40%		7.963
+MINIMAX 43 vs. MINIMAX 43				64.50%		7.893			65.53\pm0.96
+
+MINIMAX 41 vs. DDQAgent_FCNN_RS41			96.80%		6.469
+MINIMAX 42 vs. DDQAgent_FCNN_RS42			95.50%		6.518
+MINIMAX 43 vs. DDQAgent_FCNN_RS43			95.30%		5.641			95.87\pm0.81
+
+MINIMAX 41 vs. CQLAgent_FCNN_RS41			85.60%		4.769	
+MINIMAX 42 vs. CQLAgent_FCNN_RS42			84.20%		5.09
+MINIMAX 43 vs. CQLAgent_FCNN_RS43			86.90%		5.06			85.57\pm1.35
+
+MINIMAX 41 vs. DDQAgent_CNN_RS41			98.30%		5.509
+MINIMAX 42 vs. DDQAgent_CNN_RS42			92.50%		5.711
+MINIMAX 43 vs. DDQAgent_CNN_RS43			98.10%		4.996			96.30\pm3.29
+
+MINIMAX 41 vs. CQLAgent_CNN_RS41			92.10%		5.203
+MINIMAX 42 vs. CQLAgent_CNN_RS42			93.60%		4.784
+MINIMAX 43 vs. CQLAgent_CNN_RS43			89.80%		5.715			91.83\pm1.91
+
+DDQAgent_FCNN
+---------------------------------------------------------------------------------------------------------------
+DDQAgent_FCNN_RS41 vs. RANDOM 41			70.50%		10.081
+DDQAgent_FCNN_RS42 vs. RANDOM 42			61.00%		9.602
+DDQAgent_FCNN_RS43 vs. RANDOM 43			75.70%		9.047			69.07\pm7.45
+
+DDQAgent_FCNN_RS41 vs. MINIMAX 41			13.30%		8.236
+DDQAgent_FCNN_RS42 vs. MINIMAX 42			4.20%		5.54
+DDQAgent_FCNN_RS43 vs. MINIMAX 43			8.40%		7.257			8.63\pm4.55
+
+DDQAgent_FCNN_RS41 vs. DDQAgent_FCNN_RS41		60.40%		12.36
+DDQAgent_FCNN_RS42 vs. DDQAgent_FCNN_RS42		52.70%		13.46
+DDQAgent_FCNN_RS43 vs. DDQAgent_FCNN_RS43		39.10%		10.94			50.73\pm10.79
+
+DDQAgent_FCNN_RS41 vs. CQLAgent_FCNN_RS41		73.30%		5.555
+DDQAgent_FCNN_RS42 vs. CQLAgent_FCNN_RS42		4.70%		4.551
+DDQAgent_FCNN_RS43 vs. CQLAgent_FCNN_RS43		13.70%		4.698			30.57\pm37.28
+
+DDQAgent_FCNN_RS41 vs. DDQAgent_CNN_RS41		55.90%		9.216
+DDQAgent_FCNN_RS42 vs. DDQAgent_CNN_RS42		26.90%		7.633
+DDQAgent_FCNN_RS43 vs. DDQAgent_CNN_RS43		80.90%		8.611			54.57\pm27.02
+
+DDQAgent_FCNN_RS41 vs. CQLAgent_CNN_RS41		14.20%		5.328
+DDQAgent_FCNN_RS42 vs. CQLAgent_CNN_RS42		67.80%		9.466
+DDQAgent_FCNN_RS43 vs. CQLAgent_CNN_RS43		24.20%		5.375			35.40\pm28.50
+
+CQLAgent_FCNN
+---------------------------------------------------------------------------------------------------------------
+CQLAgent_FCNN_RS41 vs. RANDOM 41			81.00%		5.901
+CQLAgent_FCNN_RS42 vs. RANDOM 42			84.70%		6.193
+CQLAgent_FCNN_RS43 vs. RANDOM 43			86.10%		6.296			83.93\pm2.64
+
+CQLAgent_FCNN_RS41 vs. MINIMAX 41			9.00%		5.798
+CQLAgent_FCNN_RS42 vs. MINIMAX 42			9.20%		6.289
+CQLAgent_FCNN_RS43 vs. MINIMAX 43			9.60%		6.453			9.27\pm0.31
+
+CQLAgent_FCNN_RS41 vs. DDQAgent_FCNN_RS41		92.30%		4.888
+CQLAgent_FCNN_RS42 vs. DDQAgent_FCNN_RS42		95.20%		4.423
+CQLAgent_FCNN_RS43 vs. DDQAgent_FCNN_RS43		29.80%		6.558			72.43\pm36.95
+
+CQLAgent_FCNN_RS41 vs. CQLAgent_FCNN_RS41		59.40%		16.074
+CQLAgent_FCNN_RS42 vs. CQLAgent_FCNN_RS42		60.10%		13.184
+CQLAgent_FCNN_RS43 vs. CQLAgent_FCNN_RS43		55.70%		13.843			58.40\pm2.36
+
+CQLAgent_FCNN_RS41 vs. DDQAgent_CNN_RS41		93.20%		4.557
+CQLAgent_FCNN_RS42 vs. DDQAgent_CNN_RS42		93.40%		4.578
+CQLAgent_FCNN_RS43 vs. DDQAgent_CNN_RS43		92.60%		4.727			93.07\pm0.42
+
+CQLAgent_FCNN_RS41 vs. CQLAgent_CNN_RS41		53.30%		9.969
+CQLAgent_FCNN_RS42 vs. CQLAgent_CNN_RS42		26.80%		8.782
+CQLAgent_FCNN_RS43 vs. CQLAgent_CNN_RS43		64.20%		10.964			48.10\pm19.23
+
+DDQAgent_CNN
+---------------------------------------------------------------------------------------------------------------
+DDQAgent_CNN_RS41 vs. RANDOM 41				48.20%		10.721
+DDQAgent_CNN_RS42 vs. RANDOM 42				63.60%		10.97
+DDQAgent_CNN_RS43 vs. RANDOM 43				47.90%		10.278			53.23\pm8.98
+
+DDQAgent_CNN_RS41 vs. MINIMAX 41			4.50%		7.171		
+DDQAgent_CNN_RS42 vs. MINIMAX 42			6.70%		9.005
+DDQAgent_CNN_RS43 vs. MINIMAX 43			2.40%		6.597			4.53\pm2.15
+
+DDQAgent_CNN_RS41 vs. DDQAgent_FCNN_RS41		40.40%		10.564
+DDQAgent_CNN_RS42 vs. DDQAgent_FCNN_RS42		29.60%		8.076
+DDQAgent_CNN_RS43 vs. DDQAgent_FCNN_RS43		16.10%		6.269			28.70\pm12.17
+
+DDQAgent_CNN_RS41 vs. CQLAgent_FCNN_RS41		26.70%		7.01
+DDQAgent_CNN_RS42 vs. CQLAgent_FCNN_RS42		54.50%		11.232
+DDQAgent_CNN_RS43 vs. CQLAgent_FCNN_RS43		74.80%		4.63			52.00\pm24.15
+
+DDQAgent_CNN_RS41 vs. DDQAgent_CNN_RS41			65.30%		12.922
+DDQAgent_CNN_RS42 vs. DDQAgent_CNN_RS42			56.70%		11.379
+DDQAgent_CNN_RS43 vs. DDQAgent_CNN_RS43			57.10%		11.927			59.70\pm4.85
+
+DDQAgent_CNN_RS41 vs. CQLAgent_CNN_RS41			60.10%		8.236
+DDQAgent_CNN_RS42 vs. CQLAgent_CNN_RS42			60.60%		10.398
+DDQAgent_CNN_RS43 vs. CQLAgent_CNN_RS43			56.20%		11.023			58.97\pm2.41
+
+CQLAgent_CNN
+---------------------------------------------------------------------------------------------------------------
+CQLAgent_CNN_RS41 vs. RANDOM 41				80.60%		6.069
+CQLAgent_CNN_RS42 vs. RANDOM 42				80.10%		6.083
+CQLAgent_CNN_RS43 vs. RANDOM 43				82.30%		6.061			81.00\pm1.15
+
+CQLAgent_CNN_RS41 vs. MINIMAX 41			7.40%		6.016
+CQLAgent_CNN_RS42 vs. MINIMAX 42			9.00%		6.182
+CQLAgent_CNN_RS43 vs. MINIMAX 43			9.50%		6.082			8.63\pm1.10
+
+CQLAgent_CNN_RS41 vs. DDQAgent_FCNN_RS41		96.50%		4.656
+CQLAgent_CNN_RS42 vs. DDQAgent_FCNN_RS42		91.80%		4.617
+CQLAgent_CNN_RS43 vs. DDQAgent_FCNN_RS43		93.20%		4.573			93.83\pm2.41
+
+CQLAgent_CNN_RS41 vs. CQLAgent_FCNN_RS41		76.40%		4.272
+CQLAgent_CNN_RS42 vs. CQLAgent_FCNN_RS42		81.50%		4.278
+CQLAgent_CNN_RS43 vs. CQLAgent_FCNN_RS43		80.70%		4.217			79.53\pm2.74
+
+CQLAgent_CNN_RS41 vs. DDQAgent_CNN_RS41			94.50%		4.596
+CQLAgent_CNN_RS42 vs. DDQAgent_CNN_RS42			96.20%		4.504
+CQLAgent_CNN_RS43 vs. DDQAgent_CNN_RS43			93.10%		4.587			94.60\pm1.55
+
+CQLAgent_CNN_RS41 vs. CQLAgent_CNN_RS41			55.20%		12.743
+CQLAgent_CNN_RS42 vs. CQLAgent_CNN_RS42			51.70%		13.364
+CQLAgent_CNN_RS43 vs. CQLAgent_CNN_RS43			50.90%		12.481			52.60\pm2.29
+
+
+===============================================================================================================
+DECISION TRANSFORMERS (Given A vs. B, A always starts; winrate is given as the winrate of the transformer)
+===============================================================================================================
+							Winrate		Avg WR		Avg "Loserate"
+===============================================================================================================
+
+DT final_random_offline
+---------------------------------------------------------------------------------------------------------------
+RANDOM vs. DT_final_random_offline 41			72.9%				
+RANDOM vs. DT_final_random_offline 42			72.9%				
+RANDOM vs. DT_final_random_offline 43			70.8%		72.20\pm1.21	27.80\pm1.21
+
+DT_final_random_offline vs. RANDOM 41			84.5%		
+DT_final_random_offline vs. RANDOM 42			86.4%		
+DT_final_random_offline vs. RANDOM 42			85.3%		85.40\pm0.95
+---------------------------------------------------------------------------------------------------------------
+MINIMAX vs. DT_final_random_offline 41			61.9%				
+MINIMAX vs. DT_final_random_offline 42			59.6%				
+MINIMAX vs. DT_final_random_offline 43			58.1%		59.87\pm1.91	40.13\pm1.91
+
+DT_final_random_offline vs. MINIMAX 41			94.3%		
+DT_final_random_offline vs. MINIMAX 42			94.7%		
+DT_final_random_offline vs. MINIMAX 43			94.0%		94.33\pm0.35
+---------------------------------------------------------------------------------------------------------------		
+DDQAgent_FCNN_RS41 vs. DT_final_random_offline		97.5%
+DDQAgent_FCNN_RS42 vs. DT_final_random_offline		97.4%
+DDQAgent_FCNN_RS43 vs. DT_final_random_offline		20.2%		71.70\pm44.60	28.3\pm44.60
+
+DT_final_random_offline vs. DDQAgent_FCNN_RS41		98.4%
+DT_final_random_offline vs. DDQAgent_FCNN_RS42		99.3%
+DT_final_random_offline vs. DDQAgent_FCNN_RS43		96.7%		98.13\pm1.32
+---------------------------------------------------------------------------------------------------------------
+CQLAgent_FCNN_RS41 vs. DT_final_random_offline		26.3%
+CQLAgent_FCNN_RS42 vs. DT_final_random_offline		98.0%
+CQLAgent_FCNN_RS43 vs. DT_final_random_offline		25.5%		49.93\pm41.62	50.07\pm41.62
+							
+DT_final_random_offline vs. CQLAgent_FCNN_RS41		97.6%
+DT_final_random_offline vs. CQLAgent_FCNN_RS42		94.7%
+DT_final_random_offline vs. CQLAgent_FCNN_RS43		99.8%		97.37\pm2.55
+---------------------------------------------------------------------------------------------------------------
+DDQAgent_CNN_RS41 vs. DT_final_random_offline		93.8%
+DDQAgent_CNN_RS42 vs. DT_final_random_offline		94.1%
+DDQAgent_CNN_RS43 vs. DT_final_random_offline		97.9%		95.27\pm2.28	4.73\pm2.28
+
+DT_final_random_offline vs. DDQAgent_CNN_RS41		98.4%
+DT_final_random_offline vs. DDQAgent_CNN_RS42		98.0%
+DT_final_random_offline vs. DDQAgent_CNN_RS43		99.4%		98.6\pm0.72
+---------------------------------------------------------------------------------------------------------------		
+CQLAgent_CNN_RS41 vs. DT_final_random_offline		32.2%
+CQLAgent_CNN_RS42 vs. DT_final_random_offline		99.2%
+CQLAgent_CNN_RS43 vs. DT_final_random_offline		96.6%		76.00\pm37.95	24.00\pm37.95
+							
+DT_final_random_offline vs. CQLAgent_CNN_RS41		98.7%
+DT_final_random_offline vs. CQLAgent_CNN_RS42		96.1%
+DT_final_random_offline vs. CQLAgent_CNN_RS43		98.3%		97.70\pm1.40
+---------------------------------------------------------------------------------------------------------------
+
+DT final_random_online / final_random_online2 / final_random_online3 / final_random_online4
+(they all perform exactly the same against the RANDOM and MINIMAX agents)
+---------------------------------------------------------------------------------------------------------------
+RANDOM vs. DT_final_random_online 41			60.2%
+RANDOM vs. DT_final_random_online 42			60.1%
+RANDOM vs. DT_final_random_online 43			60.8%		
+
+DT_final_random_online vs. RANDOM 41			64.6%
+DT_final_random_online vs. RANDOM 42			66.4%
+DT_final_random_online vs. RANDOM 43			66.0%		
+
+MINIMAX vs. DT_final_random_online 41			23.2%
+MINIMAX vs. DT_final_random_online 42			21.0%
+MINIMAX vs. DT_final_random_online 43			20.3%		
+
+DT_final_random_online vs. MINIMAX 41			47.7%
+DT_final_random_online vs. MINIMAX 42			48.5%
+DT_final_random_online vs. MINIMAX 43			47.7%		
+
+DT final_minimax_offline
+---------------------------------------------------------------------------------------------------------------
+RANDOM vs. DT_final_minimax_offline 41			73.6%
+RANDOM vs. DT_final_minimax_offline 42			71.8%
+RANDOM vs. DT_final_minimax_offline 43			72.8%		72.73\pm0.90
+
+DT_final_minimax_offline vs. RANDOM 41			81.9%
+DT_final_minimax_offline vs. RANDOM 42			81.4%
+DT_final_minimax_offline vs. RANDOM 43			81.0%		81.43\pm0.45
+
+MINIMAX vs. DT_final_minimax_offline 41			60.0%
+MINIMAX vs. DT_final_minimax_offline 42			59.6%
+MINIMAX vs. DT_final_minimax_offline 43			59.3%		59.63\pm0.35
+
+DT_final_minimax_offline vs. MINIMAX 41			91.0%
+DT_final_minimax_offline vs. MINIMAX 42			93.0%
+DT_final_minimax_offline vs. MINIMAX 43			93.1%		92.37\pm1.18
+
+DT final_minimax_online
+---------------------------------------------------------------------------------------------------------------
+RANDOM vs. DT_final_minimax_offline 41			60.2%
+RANDOM vs. DT_final_minimax_offline 42			60.1%
+RANDOM vs. DT_final_minimax_offline 43			60.8%
+
+DT_final_minimax_offline vs. RANDOM 41			64.6%
+DT_final_minimax_offline vs. RANDOM 42			66.4%
+DT_final_minimax_offline vs. RANDOM 43			66.0%
+
+MINIMAX vs. DT_final_minimax_offline 41			23.2%
+MINIMAX vs. DT_final_minimax_offline 42			21.0%
+MINIMAX vs. DT_final_minimax_offline 43			20.3%
+
+DT_final_minimax_offline vs. MINIMAX 41			47.7%
+DT_final_minimax_offline vs. MINIMAX 42			48.5%
+DT_final_minimax_offline vs. MINIMAX 43			47.7%
+
+
+
