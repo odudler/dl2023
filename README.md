@@ -27,7 +27,9 @@ Deep Learning Project 2023 Autumn Semester ETH
 - transformers (pip install transformers)
 - pytorch (pip install torch)
 
-# How to reproduce the DT Agent code
+# How run the DT Agent code and reproduce results
 - All the relevant code for generating trajectories and training the DT agent and evaluating it is in the dt_notebook.ipynb file. Simply executing the notebook from top to bottom (while specifying file names for storing or loading models/trajectories) runs all the code. In its current version, when running the notebook, trajectories are generated (currently only 10) instead of read from a file. The training of the transformer is commented out, simply uncomment one line of code "trainer.train()". The online training is performed over 2000 rounds by default, the model which is trained can be switched by loading a different (potentially pretrained) model. The transformer is evaluated in 100 epispodes against a chosen opponent (random opponent currently).
 
 The best way to execute the notebook is to go cell by cell and perform minor changes for filenames, opponents or rounds/iterations according to personal wishes.
+
+To recreate the results shown in the paper, load the selected model (see dt_model folder) and run the evaluation function in the lowest cell with the wanted opponent. Prior cells need to be executed due to code dependencies!
