@@ -20,9 +20,8 @@ class TrainableDT(DecisionTransformerModel):
         act_dim = action_preds.shape[2]
         action_preds = action_preds.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
         action_targets = action_targets.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
-        #print(f"action_preds: {action_preds} and action_targets: {action_targets}, length: {len(action_preds)}")
         
-        # loss = torch.mean((action_preds - action_targets) ** 2)
+        # Use Cross Entropy Loss
         criterion = torch.nn.CrossEntropyLoss()
         loss = criterion(action_preds, action_targets)
 
